@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Mail,
@@ -7,10 +7,104 @@ import {
   ArrowRight,
   ShieldCheck,
   AlertCircle,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { registerUser, initiateGoogleLogin } from "../services/authApi";
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+// Each rule: { label, test(password) → boolean }
+const PASSWORD_RULES = [
+  { label: "At least 8 characters", test: (p) => p.length >= 8 },
+  { label: "One uppercase letter (A–Z)", test: (p) => /[A-Z]/.test(p) },
+  { label: "One lowercase letter (a–z)", test: (p) => /[a-z]/.test(p) },
+  { label: "One number (0–9)", test: (p) => /[0-9]/.test(p) },
+  {
+    label: "One special character (!@#…)",
+    test: (p) => /[^A-Za-z0-9]/.test(p),
+  },
+];
+
+const STRENGTH_CONFIG = [
+  { label: "", color: "bg-slate-200" }, // 0 — empty
+  { label: "Weak", color: "bg-red-500" }, // 1
+  { label: "Fair", color: "bg-orange-400" }, // 2
+  { label: "Good", color: "bg-yellow-400" }, // 3
+  { label: "Strong", color: "bg-emerald-500" }, // 4
+  { label: "Very strong", color: "bg-emerald-600" }, // 5
+];
+
+// ── Sub-component: strength bar ───────────────────────────────────────────────
+const PasswordStrengthMeter = ({ password }) => {
+  const score = useMemo(
+    () => PASSWORD_RULES.filter((r) => r.test(password)).length,
+    [password],
+  );
+
+  const config = STRENGTH_CONFIG[score];
+
+  if (!password) return null;
+
+  return (
+    <div className="mt-2.5 space-y-2">
+      {/* Bar */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 flex gap-1">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+                i <= score ? config.color : "bg-slate-200"
+              }`}
+            />
+          ))}
+        </div>
+        {score > 0 && (
+          <span
+            className={`text-[11px] font-bold min-w-[60px] text-right transition-colors duration-300 ${
+              score <= 1
+                ? "text-red-500"
+                : score === 2
+                  ? "text-orange-500"
+                  : score === 3
+                    ? "text-yellow-500"
+                    : "text-emerald-600"
+            }`}
+          >
+            {config.label}
+          </span>
+        )}
+      </div>
+
+      {/* Checklist — shown only when field is non-empty */}
+      <ul className="grid grid-cols-1 gap-0.5">
+        {PASSWORD_RULES.map((rule) => {
+          const passed = rule.test(password);
+          return (
+            <li
+              key={rule.label}
+              className={`flex items-center gap-1.5 text-[11px] font-medium transition-colors duration-200 ${
+                passed ? "text-emerald-600" : "text-slate-400"
+              }`}
+            >
+              {passed ? (
+                <CheckCircle2 className="h-3 w-3 shrink-0" />
+              ) : (
+                <XCircle className="h-3 w-3 shrink-0" />
+              )}
+              {rule.label}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+};
+
+// ── Main component ────────────────────────────────────────────────────────────
 const SignupPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -21,34 +115,69 @@ const SignupPage = () => {
     password: "",
     confirmPassword: "",
   });
+  const [fieldErrors, setFieldErrors] = useState({
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+
+  // Password is strong enough when all 5 rules pass
+  const passwordScore = useMemo(
+    () => PASSWORD_RULES.filter((r) => r.test(form.password)).length,
+    [form.password],
+  );
+  const isPasswordStrong = passwordScore === 5;
 
   const handleChange = (e) => {
-    setForm((prev) => ({ ...prev, [e.target.id]: e.target.value }));
+    const { id, value } = e.target;
+    setForm((prev) => ({ ...prev, [id]: value }));
     setError("");
+    if (id === "password") setPasswordTouched(true);
+    if (fieldErrors[id]) {
+      setFieldErrors((prev) => ({ ...prev, [id]: "" }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { id, value } = e.target;
+    if (id === "email" && value && !isValidEmail(value)) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        email: "Please enter a valid email address",
+      }));
+    }
+    if (id === "confirmPassword" && value && value !== form.password) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        confirmPassword: "Passwords do not match",
+      }));
+    }
+  };
+
+  const validate = () => {
+    const errs = { fullName: "", email: "", password: "", confirmPassword: "" };
+    if (!form.fullName.trim()) errs.fullName = "Full name is required";
+    if (!form.email) errs.email = "Email is required";
+    else if (!isValidEmail(form.email))
+      errs.email = "Please enter a valid email address";
+    if (!form.password) errs.password = "Password is required";
+    else if (!isPasswordStrong)
+      errs.password =
+        "Password is too weak — please satisfy all requirements above";
+    if (!form.confirmPassword)
+      errs.confirmPassword = "Please confirm your password";
+    else if (form.password !== form.confirmPassword)
+      errs.confirmPassword = "Passwords do not match";
+    setFieldErrors(errs);
+    return Object.values(errs).every((v) => !v);
   };
 
   const handleSubmit = async () => {
-    // Client-side validation before hitting backend
-    if (
-      !form.fullName ||
-      !form.email ||
-      !form.password ||
-      !form.confirmPassword
-    ) {
-      setError("All fields are required.");
-      return;
-    }
-    if (form.password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-    if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-
+    if (!validate()) return;
     setLoading(true);
     try {
       const authData = await registerUser({
@@ -57,7 +186,7 @@ const SignupPage = () => {
         password: form.password,
       });
       login(authData);
-      navigate("/user/dashboard"); // new users always land on user dashboard
+      navigate("/user/dashboard");
     } catch (err) {
       setError(
         err.response?.data?.message || "Registration failed. Please try again.",
@@ -67,21 +196,31 @@ const SignupPage = () => {
     }
   };
 
+  // Shared input class builder
+  const inputCls = (field) =>
+    `block w-full pl-10 pr-3 py-3 border rounded-xl focus:ring-2 bg-slate-50 focus:bg-white
+     transition-all duration-300 sm:text-sm outline-none shadow-sm ${
+       fieldErrors[field]
+         ? "border-red-300 focus:ring-red-500/20 focus:border-red-400 bg-red-50 focus:bg-white"
+         : "border-slate-200 hover:border-slate-300 focus:ring-primary-900 focus:border-primary-900"
+     }`;
+
+  const iconCls = (field) =>
+    `h-5 w-5 ${fieldErrors[field] ? "text-red-400" : "text-slate-400"}`;
+
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-slate-50 to-slate-100 items-center justify-center p-4 sm:p-6 lg:p-8 animate-fade-in">
       <div className="max-w-5xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row-reverse min-h-[600px] animate-slide-up hover:shadow-[0_20px_50px_rgba(30,58,138,0.12)] transition-shadow duration-500">
         {/* Right Side - Branding */}
         <div className="md:w-5/12 bg-primary-900 p-10 text-white flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 left-0 -ml-20 -mt-20 w-64 h-64 rounded-full bg-accent-amber opacity-20 blur-3xl group-hover:scale-110 group-hover:opacity-30 transition-all duration-700"></div>
-          <div className="absolute bottom-0 right-0 -mr-20 -mb-20 w-80 h-80 rounded-full bg-blue-600 opacity-20 blur-3xl group-hover:scale-110 group-hover:opacity-30 transition-all duration-700 delay-100"></div>
-
+          <div className="absolute top-0 left-0 -ml-20 -mt-20 w-64 h-64 rounded-full bg-accent-amber opacity-20 blur-3xl group-hover:scale-110 group-hover:opacity-30 transition-all duration-700" />
+          <div className="absolute bottom-0 right-0 -mr-20 -mb-20 w-80 h-80 rounded-full bg-blue-600 opacity-20 blur-3xl group-hover:scale-110 group-hover:opacity-30 transition-all duration-700 delay-100" />
           <div className="relative z-10 flex items-center space-x-2 justify-end animate-slide-down delay-100">
             <span className="text-xl font-bold tracking-tight">
               Smart Campus Hub
             </span>
             <ShieldCheck className="h-8 w-8 text-accent-emerald" />
           </div>
-
           <div className="relative z-10 mt-12 mb-12 text-right animate-slide-left delay-200">
             <h1 className="text-4xl font-extrabold tracking-tight mb-4 text-white">
               Join the Hub
@@ -91,7 +230,6 @@ const SignupPage = () => {
               facility bookings, and support systems.
             </p>
           </div>
-
           <div className="relative z-10 text-sm text-blue-200 font-medium text-right animate-slide-up delay-300">
             &copy; {new Date().getFullYear()} University Campus Hub
           </div>
@@ -107,7 +245,6 @@ const SignupPage = () => {
               Fill in the details below to register.
             </p>
 
-            {/* Error Banner */}
             {error && (
               <div className="mb-5 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
                 <AlertCircle className="h-4 w-4 shrink-0" />
@@ -126,17 +263,23 @@ const SignupPage = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-slate-400" />
+                    <User className={iconCls("fullName")} />
                   </div>
                   <input
                     id="fullName"
                     type="text"
                     value={form.fullName}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-900 focus:border-primary-900 bg-slate-50 focus:bg-white transition-colors duration-200 sm:text-sm outline-none"
+                    className={inputCls("fullName")}
                     placeholder="John Doe"
                   />
                 </div>
+                {fieldErrors.fullName && (
+                  <p className="mt-1.5 text-xs text-red-500 font-medium flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {fieldErrors.fullName}
+                  </p>
+                )}
               </div>
 
               {/* Email */}
@@ -149,20 +292,27 @@ const SignupPage = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-slate-400" />
+                    <Mail className={iconCls("email")} />
                   </div>
                   <input
                     id="email"
                     type="email"
                     value={form.email}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-900 focus:border-primary-900 bg-slate-50 focus:bg-white transition-colors duration-200 sm:text-sm outline-none"
+                    onBlur={handleBlur}
+                    className={inputCls("email")}
                     placeholder="student@university.edu"
                   />
                 </div>
+                {fieldErrors.email && (
+                  <p className="mt-1.5 text-xs text-red-500 font-medium flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {fieldErrors.email}
+                  </p>
+                )}
               </div>
 
-              {/* Password */}
+              {/* Password + strength meter */}
               <div>
                 <label
                   className="block text-sm font-medium text-slate-700 mb-1"
@@ -172,17 +322,27 @@ const SignupPage = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-slate-400" />
+                    <Lock className={iconCls("password")} />
                   </div>
                   <input
                     id="password"
                     type="password"
                     value={form.password}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-900 focus:border-primary-900 bg-slate-50 focus:bg-white transition-colors duration-200 sm:text-sm outline-none"
+                    className={inputCls("password")}
                     placeholder="Min. 8 characters"
                   />
                 </div>
+                {/* Strength meter appears as soon as user starts typing */}
+                {passwordTouched && (
+                  <PasswordStrengthMeter password={form.password} />
+                )}
+                {fieldErrors.password && (
+                  <p className="mt-1.5 text-xs text-red-500 font-medium flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {fieldErrors.password}
+                  </p>
+                )}
               </div>
 
               {/* Confirm Password */}
@@ -195,17 +355,24 @@ const SignupPage = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-slate-400" />
+                    <Lock className={iconCls("confirmPassword")} />
                   </div>
                   <input
                     id="confirmPassword"
                     type="password"
                     value={form.confirmPassword}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-900 focus:border-primary-900 bg-slate-50 focus:bg-white transition-colors duration-200 sm:text-sm outline-none"
+                    onBlur={handleBlur}
+                    className={inputCls("confirmPassword")}
                     placeholder="••••••••"
                   />
                 </div>
+                {fieldErrors.confirmPassword && (
+                  <p className="mt-1.5 text-xs text-red-500 font-medium flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {fieldErrors.confirmPassword}
+                  </p>
+                )}
               </div>
 
               <div className="pt-2">
@@ -242,7 +409,6 @@ const SignupPage = () => {
                   </span>
                 </div>
               </div>
-
               <div className="mt-4">
                 <button
                   type="button"

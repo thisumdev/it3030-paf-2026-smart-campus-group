@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Search, Bell, User } from "lucide-react";
 import { useAuth } from "../../auth/context/AuthContext";
 import UserSidebar from "./UserSideBar";
+import UserProfilePanel from "./UserProfilePanel"; // ← NEW
 
 const UserLayout = () => {
   const { user } = useAuth();
+  const [profileOpen, setProfileOpen] = useState(false); // ← NEW
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
@@ -32,14 +35,19 @@ const UserLayout = () => {
               <Bell className="h-5 w-5" />
             </button>
 
-            <div className="flex items-center ml-2 cursor-pointer group">
+            {/* ── Avatar button — opens profile panel ── */}
+            <button
+              onClick={() => setProfileOpen(true)}
+              title="View profile"
+              className="flex items-center ml-2 cursor-pointer group"
+            >
               <div className="h-9 w-9 rounded-full bg-primary-100 flex items-center justify-center border-2 border-white shadow-sm group-hover:shadow-md transition-all duration-300 group-hover:scale-105">
                 <User className="h-5 w-5 text-primary-900" />
               </div>
               <span className="ml-2 text-sm font-medium text-slate-700 hidden sm:block group-hover:text-primary-900 transition-colors">
                 {user?.fullName || "User"}
               </span>
-            </div>
+            </button>
           </div>
         </header>
 
@@ -48,6 +56,12 @@ const UserLayout = () => {
           <Outlet />
         </div>
       </main>
+
+      {/* ── Profile panel ── */}
+      <UserProfilePanel
+        isOpen={profileOpen}
+        onClose={() => setProfileOpen(false)}
+      />
     </div>
   );
 };

@@ -62,11 +62,19 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const updateUser = (authData) => {
+    localStorage.setItem("token", authData.token);
+    localStorage.setItem("user", JSON.stringify(authData));
+    setUser(authData);
+  };
+
   // isAdmin convenience flag — used by ProtectedRoute and nav components
   const isAdmin = user?.role === "ADMIN";
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, logout, updateUser, isAdmin }}
+    >
       {children}
     </AuthContext.Provider>
   );

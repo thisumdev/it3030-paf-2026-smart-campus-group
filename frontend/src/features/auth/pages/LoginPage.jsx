@@ -4,33 +4,60 @@ import { Mail, Lock, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { loginUser, initiateGoogleLogin } from "../services/authApi";
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
 const LoginPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
   const [form, setForm] = useState({ email: "", password: "" });
+  const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setForm((prev) => ({ ...prev, [e.target.id]: e.target.value }));
-    setError(""); // clear error on new input
+    const { id, value } = e.target;
+    setForm((prev) => ({ ...prev, [id]: value }));
+    setError("");
+
+    // Clear field error as soon as user starts correcting
+    if (fieldErrors[id]) {
+      setFieldErrors((prev) => ({ ...prev, [id]: "" }));
+    }
+  };
+
+  // Validate individual field on blur
+  const handleBlur = (e) => {
+    const { id, value } = e.target;
+    if (id === "email" && value && !isValidEmail(value)) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        email: "Please enter a valid email address",
+      }));
+    }
+  };
+
+  const validate = () => {
+    const errs = { email: "", password: "" };
+    if (!form.email) errs.email = "Email is required";
+    else if (!isValidEmail(form.email))
+      errs.email = "Please enter a valid email address";
+    if (!form.password) errs.password = "Password is required";
+    setFieldErrors(errs);
+    return !errs.email && !errs.password;
   };
 
   const handleSubmit = async () => {
-    if (!form.email || !form.password) {
-      setError("Please enter your email and password.");
-      return;
-    }
+    if (!validate()) return;
     setLoading(true);
     try {
       const authData = await loginUser(form);
-      login(authData); // store in context + localStorage
+      login(authData);
       navigate(
         authData.role === "ADMIN" ? "/admin/dashboard" : "/user/dashboard",
       );
     } catch (err) {
-      // err.response.data is our ApiResponse — message field has the backend error
       setError(
         err.response?.data?.message || "Login failed. Please try again.",
       );
@@ -39,7 +66,6 @@ const LoginPage = () => {
     }
   };
 
-  // Allow Enter key to submit
   const handleKeyDown = (e) => {
     if (e.key === "Enter") handleSubmit();
   };
@@ -49,16 +75,14 @@ const LoginPage = () => {
       <div className="max-w-5xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px] animate-slide-up hover:shadow-[0_20px_50px_rgba(30,58,138,0.12)] transition-shadow duration-500">
         {/* Left Side - Branding */}
         <div className="md:w-5/12 bg-primary-900 p-10 text-white flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-blue-600 opacity-20 blur-3xl group-hover:scale-110 group-hover:opacity-30 transition-all duration-700"></div>
-          <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-accent-emerald opacity-20 blur-3xl group-hover:scale-110 group-hover:opacity-30 transition-all duration-700 delay-100"></div>
-
+          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-blue-600 opacity-20 blur-3xl group-hover:scale-110 group-hover:opacity-30 transition-all duration-700" />
+          <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-accent-emerald opacity-20 blur-3xl group-hover:scale-110 group-hover:opacity-30 transition-all duration-700 delay-100" />
           <div className="relative z-10 flex items-center space-x-2 animate-slide-down delay-100">
             <ShieldCheck className="h-8 w-8 text-accent-emerald" />
             <span className="text-xl font-bold tracking-tight">
               Smart Campus Hub
             </span>
           </div>
-
           <div className="relative z-10 mt-12 mb-12 animate-slide-right delay-200">
             <h1 className="text-4xl font-extrabold tracking-tight mb-4 text-white">
               Welcome back
@@ -68,7 +92,6 @@ const LoginPage = () => {
               raise support tickets efficiently.
             </p>
           </div>
-
           <div className="relative z-10 text-sm text-blue-200 font-medium animate-slide-up delay-300">
             &copy; {new Date().getFullYear()} University Campus Hub
           </div>
@@ -82,7 +105,7 @@ const LoginPage = () => {
               Please enter your details to continue.
             </p>
 
-            {/* Error Banner */}
+            {/* Global error banner */}
             {error && (
               <div className="mb-5 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
                 <AlertCircle className="h-4 w-4 shrink-0" />
@@ -91,6 +114,7 @@ const LoginPage = () => {
             )}
 
             <div className="space-y-5">
+              {/* Email */}
               <div>
                 <label
                   className="block text-sm font-medium text-slate-700 mb-1"
@@ -100,20 +124,34 @@ const LoginPage = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-slate-400" />
+                    <Mail
+                      className={`h-5 w-5 ${fieldErrors.email ? "text-red-400" : "text-slate-400"}`}
+                    />
                   </div>
                   <input
                     id="email"
                     type="email"
                     value={form.email}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     onKeyDown={handleKeyDown}
-                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-900 focus:border-primary-900 bg-slate-50 focus:bg-white hover:border-slate-300 transition-all duration-300 sm:text-sm outline-none shadow-sm"
+                    className={`block w-full pl-10 pr-3 py-3 border rounded-xl focus:ring-2 bg-slate-50 focus:bg-white hover:border-slate-300 transition-all duration-300 sm:text-sm outline-none shadow-sm ${
+                      fieldErrors.email
+                        ? "border-red-300 focus:ring-red-500/20 focus:border-red-400 bg-red-50 focus:bg-white"
+                        : "border-slate-200 focus:ring-primary-900 focus:border-primary-900"
+                    }`}
                     placeholder="student@university.edu"
                   />
                 </div>
+                {fieldErrors.email && (
+                  <p className="mt-1.5 text-xs text-red-500 font-medium flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {fieldErrors.email}
+                  </p>
+                )}
               </div>
 
+              {/* Password */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label
@@ -131,7 +169,9 @@ const LoginPage = () => {
                 </div>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-slate-400" />
+                    <Lock
+                      className={`h-5 w-5 ${fieldErrors.password ? "text-red-400" : "text-slate-400"}`}
+                    />
                   </div>
                   <input
                     id="password"
@@ -139,10 +179,20 @@ const LoginPage = () => {
                     value={form.password}
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
-                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-900 focus:border-primary-900 bg-slate-50 focus:bg-white hover:border-slate-300 transition-all duration-300 sm:text-sm outline-none shadow-sm"
+                    className={`block w-full pl-10 pr-3 py-3 border rounded-xl focus:ring-2 bg-slate-50 focus:bg-white hover:border-slate-300 transition-all duration-300 sm:text-sm outline-none shadow-sm ${
+                      fieldErrors.password
+                        ? "border-red-300 focus:ring-red-500/20 focus:border-red-400 bg-red-50 focus:bg-white"
+                        : "border-slate-200 focus:ring-primary-900 focus:border-primary-900"
+                    }`}
                     placeholder="••••••••"
                   />
                 </div>
+                {fieldErrors.password && (
+                  <p className="mt-1.5 text-xs text-red-500 font-medium flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {fieldErrors.password}
+                  </p>
+                )}
               </div>
 
               <div className="pt-2">
@@ -179,8 +229,6 @@ const LoginPage = () => {
                   </span>
                 </div>
               </div>
-
-              {/* Google Button */}
               <div className="mt-6">
                 <button
                   type="button"
