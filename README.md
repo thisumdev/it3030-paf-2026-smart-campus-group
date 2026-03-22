@@ -86,6 +86,8 @@ feature/module4-auth-notifications
 | `GET`    | `/api/users/{id}`      | ADMIN   | 200    | Get user by ID                   |
 | `PUT`    | `/api/users/{id}/role` | ADMIN   | 200    | Update user role                 |
 | `DELETE` | `/api/users/{id}`      | ADMIN   | 204    | Delete user                      |
+| `PUT`    | `/api/users/me`        | Any JWT | 200    | Update own profile               |
+| `DELETE` | `/api/users/me`        | Any JWT | 204    | Delete own account               |
 
 ---
 
@@ -126,6 +128,9 @@ feature/module4-auth-notifications
 - [x] User layout (sidebar + topbar) with nested routing
 - [x] User Management page (filter, search, delete, role update)
 - [x] Admin Dashboard with stat cards
+- [x] User profile panel (view, edit, delete own account)
+- [x] Email validation on Login & Signup pages
+- [x] Password strength meter on Signup page
 - [ ] Notifications module _(in progress)_
 
 ---

@@ -5,6 +5,7 @@ import com.smart_campus.smart_campus.security.JwtUtil;
 import com.smart_campus.smart_campus.user.dto.AuthResponse;
 import com.smart_campus.smart_campus.user.dto.LoginRequest;
 import com.smart_campus.smart_campus.user.dto.RegisterRequest;
+import com.smart_campus.smart_campus.user.dto.UpdateProfileRequest;
 import com.smart_campus.smart_campus.user.entity.User;
 import com.smart_campus.smart_campus.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -168,4 +169,69 @@ public void deleteUser(Long id) {
 
     userRepository.deleteById(id);
 }
+
+/**
+ * PUT /api/users/me
+ * Updates the authenticated user's own profile.
+ * Password change is opt-in: only executed when newPassword is non-blank.
+ * Always issues a fresh JWT — covers the case where email changes.
+ */
+public AuthResponse updateMyProfile(UpdateProfileRequest request) {
+    User user = getCurrentUser();
+
+    // ── Full name ───────────────────────────────────────────────────────────
+    user.setFullName(request.getFullName().trim());
+
+    // ── Email — only update if it changed ──────────────────────────────────
+    String newEmail = request.getEmail().trim();
+    if (!user.getEmail().equalsIgnoreCase(newEmail)) {
+        if (userRepository.existsByEmail(newEmail)) {
+            throw new ResourceConflictException("An account with this email already exists");
+        }
+        user.setEmail(newEmail);
+    }
+
+    // ── Password — optional block ───────────────────────────────────────────
+    if (request.getNewPassword() != null && !request.getNewPassword().isBlank()) {
+        if (user.getPassword() == null) {
+            throw new BadRequestException(
+                "Google Sign-In accounts cannot set a password. Please continue using Google."
+            );
+        }
+        if (request.getCurrentPassword() == null || request.getCurrentPassword().isBlank()) {
+            throw new BadRequestException("Current password is required to set a new password");
+        }
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new UnauthorizedException("Current password is incorrect");
+        }
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+    }
+
+    User saved = userRepository.save(user);
+    return buildAuthResponse(saved);
+}
+
+/**
+ * DELETE /api/users/me
+ * Permanently deletes the authenticated user's own account.
+ * Manual (password) accounts must confirm with their password.
+ * OAuth-only accounts (password == null) may pass null — no check performed.
+ */
+public void deleteMyAccount(String confirmPassword) {
+    User user = getCurrentUser();
+
+    if (user.getPassword() != null) {
+        if (confirmPassword == null || confirmPassword.isBlank()) {
+            throw new BadRequestException(
+                "Password confirmation is required to delete your account"
+            );
+        }
+        if (!passwordEncoder.matches(confirmPassword, user.getPassword())) {
+            throw new UnauthorizedException("Password is incorrect");
+        }
+    }
+
+    userRepository.deleteById(user.getId());
+}
+
 }

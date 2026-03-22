@@ -2,8 +2,11 @@ package com.smart_campus.smart_campus.user.controller;
 
 import com.smart_campus.smart_campus.core.util.ApiResponse;
 import com.smart_campus.smart_campus.user.dto.AuthResponse;
+import com.smart_campus.smart_campus.user.dto.DeleteAccountRequest;
 import com.smart_campus.smart_campus.user.dto.LoginRequest;
 import com.smart_campus.smart_campus.user.dto.RegisterRequest;
+import com.smart_campus.smart_campus.user.dto.UpdateProfileRequest;
+
 import com.smart_campus.smart_campus.user.entity.User;
 import com.smart_campus.smart_campus.user.service.UserService;
 import jakarta.validation.Valid;
@@ -186,4 +189,44 @@ public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
             .status(HttpStatus.NO_CONTENT)
             .body(ApiResponse.noContent("User deleted successfully."));
 }
+
+/**
+ * PUT /api/users/me
+ * HTTP 200
+ * Authenticated — any role (own profile only)
+ * Body: { fullName, email, currentPassword?, newPassword? }
+ */
+@PutMapping("/me")
+public ResponseEntity<ApiResponse<EntityModel<AuthResponse>>> updateMyProfile(
+        @Valid @RequestBody UpdateProfileRequest request) {
+
+    AuthResponse updated = userService.updateMyProfile(request);
+
+    EntityModel<AuthResponse> model = EntityModel.of(updated,
+        linkTo(methodOn(UserController.class).getMyProfile()).withSelfRel()
+    );
+
+    return ResponseEntity.ok(
+        ApiResponse.success("Profile updated successfully", model)
+    );
+}
+
+/**
+ * DELETE /api/users/me
+ * HTTP 204
+ * Authenticated — any role (own account)
+ * Body: { password } — required for manual accounts, omitted for OAuth
+ */
+@DeleteMapping("/me")
+public ResponseEntity<ApiResponse<Void>> deleteMyAccount(
+        @RequestBody DeleteAccountRequest request) {
+
+    userService.deleteMyAccount(request.getPassword());
+
+    return ResponseEntity
+        .status(HttpStatus.NO_CONTENT)
+        .body(ApiResponse.noContent("Account deleted successfully"));
+}
+
+
 }
