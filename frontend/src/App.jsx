@@ -5,10 +5,10 @@ import ProtectedRoute from "./features/auth/components/ProtectedRoute";
 import LoginPage from "./features/auth/pages/LoginPage";
 import SignupPage from "./features/auth/pages/SignupPage";
 import AuthCallbackPage from "./features/auth/pages/AuthCallbackPage";
-
+import UserNotificationsPage from "./features/notifications/pages/UserNotificationsPage";
 import UserLayout from "./features/user/components/UserLayout";
 import UserDashboard from "./features/user/pages/UserDashboard";
-
+import NotificationPage from "./features/admin/pages/NotificationPage";
 import AdminLayout from "./features/admin/components/AdminLayout";
 import AdminDashboard from "./features/admin/pages/AdminDashboard";
 import UserManagementPage from "./features/admin/user/pages/UserManagementPage";
@@ -34,12 +34,10 @@ function App() {
             }
           >
             <Route path="/user/dashboard" element={<UserDashboard />} />
-            {/*<Route path="/user/bookings" element={<UserBookingsPage />} />
-            <Route path="/user/tickets" element={<UserTicketsPage />} />
             <Route
               path="/user/notifications"
               element={<UserNotificationsPage />}
-            />*/}
+            />
           </Route>
 
           {/* Protected — ADMIN only (all share AdminLayout) */}
@@ -55,7 +53,7 @@ function App() {
             {/* <Route path="/admin/facilities" element={<FacilitiesPage />} /> */}
             {/* <Route path="/admin/bookings" element={<BookingsPage />} /> */}
             {/* <Route path="/admin/tickets" element={<TicketsPage />} /> */}
-            {/* <Route path="/admin/notifications" element={<NotificationsPage />} /> */}
+            <Route path="/admin/notifications" element={<NotificationPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/login" replace />} />

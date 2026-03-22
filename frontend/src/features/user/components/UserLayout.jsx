@@ -4,6 +4,7 @@ import { Search, Bell, User } from "lucide-react";
 import { useAuth } from "../../auth/context/AuthContext";
 import UserSidebar from "./UserSideBar";
 import UserProfilePanel from "./UserProfilePanel"; // ← NEW
+import NotificationBell from "../../notifications/components/NotificationBell";
 
 const UserLayout = () => {
   const { user } = useAuth();
@@ -30,10 +31,7 @@ const UserLayout = () => {
           </div>
 
           <div className="ml-4 flex items-center space-x-4">
-            <button className="p-2 text-slate-400 hover:text-primary-900 relative transition-colors duration-300 hover:scale-110">
-              <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white animate-pulse" />
-              <Bell className="h-5 w-5" />
-            </button>
+            <NotificationBell />
 
             {/* ── Avatar button — opens profile panel ── */}
             <button

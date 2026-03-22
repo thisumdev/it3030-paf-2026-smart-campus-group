@@ -1,7 +1,9 @@
+// src/features/admin/components/AdminLayout.jsx
 import { Outlet } from "react-router-dom";
-import { Search, Bell, Shield } from "lucide-react";
+import { Search, Shield } from "lucide-react";
 import { useAuth } from "../../auth/context/AuthContext";
 import AdminSidebar from "./AdminSideBar";
+import NotificationBell from "../../notifications/components/NotificationBell"; // ← ADD
 
 const AdminLayout = () => {
   const { user } = useAuth();
@@ -9,9 +11,7 @@ const AdminLayout = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <AdminSidebar />
-
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden animate-fade-in">
-        {/* Topbar */}
         <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 lg:px-8 shadow-sm z-10 sticky top-0">
           <div className="flex-1 flex max-w-2xl">
             <div className="relative w-full max-w-md hidden sm:block">
@@ -27,10 +27,8 @@ const AdminLayout = () => {
           </div>
 
           <div className="ml-4 flex items-center space-x-4">
-            <button className="p-2 text-slate-400 hover:text-primary-900 relative transition-colors duration-300 hover:scale-110">
-              <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-accent-amber border-2 border-white animate-pulse" />
-              <Bell className="h-5 w-5" />
-            </button>
+            {/* ← REPLACE static bell with this: */}
+            <NotificationBell />
 
             <div className="flex items-center ml-2 cursor-pointer border-l border-slate-200 pl-4 py-1 group">
               <div className="text-right mr-3 hidden sm:block">
@@ -48,7 +46,6 @@ const AdminLayout = () => {
           </div>
         </header>
 
-        {/* Page content goes here */}
         <div className="flex-1 overflow-y-auto p-6 lg:p-8">
           <Outlet />
         </div>
