@@ -1,4 +1,4 @@
-package com.smart_campus.smart_campus.booking.entity;
+ mvn -versionpackage com.smart_campus.smart_campus.booking.entity;
 
 
 import com.smart_campus.smart_campus.facility.entity.Resource;
