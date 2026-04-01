@@ -4,6 +4,8 @@ import com.smart_campus.smart_campus.core.exception.CustomExceptions.BadRequestE
 import com.smart_campus.smart_campus.core.exception.CustomExceptions.ForbiddenException;
 import com.smart_campus.smart_campus.core.exception.CustomExceptions.ResourceNotFoundException;
 import com.smart_campus.smart_campus.core.exception.CustomExceptions.FileUploadException;
+import com.smart_campus.smart_campus.notifications.entity.Notification.NotificationType;
+import com.smart_campus.smart_campus.notifications.service.NotificationService;
 import com.smart_campus.smart_campus.ticket.repository.ResourceRepository;
 import com.smart_campus.smart_campus.ticket.entity.Ticket.TicketStatus;
 import com.smart_campus.smart_campus.ticket.dto.*;
@@ -30,6 +32,7 @@ public class TicketServiceImpl implements TicketService {
     private final TicketCommentRepository ticketCommentRepository;
     private final UserRepository userRepository;
     private final ResourceRepository resourceRepository;
+    private final NotificationService notificationService;
 
     private static final String UPLOAD_DIR = "uploads/tickets/";
     private static final int MAX_IMAGES = 3;
@@ -80,6 +83,14 @@ public class TicketServiceImpl implements TicketService {
                 .collect(Collectors.toList());
     }
 
+    // ─── GET ASSIGNED TICKETS (technician) ──────────────────────────
+    @Override
+    public List<TicketResponseDTO> getAssignedTickets(Long technicianId) {
+        return ticketRepository.findByAssigneeId(technicianId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     // ─── UPDATE STATUS ───────────────────────────────────────────────
     @Override
     @Transactional
@@ -103,9 +114,37 @@ public class TicketServiceImpl implements TicketService {
             var assignee = userRepository.findById(dto.getAssigneeId())
                     .orElseThrow(() -> new ResourceNotFoundException("Assignee", dto.getAssigneeId()));
             ticket.setAssignee(assignee);
+            notificationService.notify(
+                    assignee.getId(),
+                    NotificationType.TICKET_ASSIGNED,
+                    "You have been assigned to ticket: '" + ticket.getTitle() + "'.",
+                    ticket.getId(), "TICKET");
         }
 
-        return mapToResponse(ticketRepository.save(ticket));
+        Ticket saved = ticketRepository.save(ticket);
+        Long reporterId = saved.getReporter().getId();
+
+        switch (dto.getStatus()) {
+            case IN_PROGRESS -> notificationService.notify(
+                    reporterId, NotificationType.TICKET_IN_PROGRESS,
+                    "Your ticket '" + saved.getTitle() + "' is now being worked on.",
+                    saved.getId(), "TICKET");
+            case RESOLVED -> notificationService.notify(
+                    reporterId, NotificationType.TICKET_RESOLVED,
+                    "Your ticket '" + saved.getTitle() + "' has been resolved.",
+                    saved.getId(), "TICKET");
+            case REJECTED -> notificationService.notify(
+                    reporterId, NotificationType.TICKET_REJECTED,
+                    "Your ticket '" + saved.getTitle() + "' has been rejected.",
+                    saved.getId(), "TICKET");
+            case CLOSED -> notificationService.notify(
+                    reporterId, NotificationType.TICKET_CLOSED,
+                    "Your ticket '" + saved.getTitle() + "' has been closed.",
+                    saved.getId(), "TICKET");
+            default -> { }
+        }
+
+        return mapToResponse(saved);
     }
 
     // ─── DELETE TICKET ───────────────────────────────────────────────

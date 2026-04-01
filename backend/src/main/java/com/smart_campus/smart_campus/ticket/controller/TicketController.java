@@ -52,6 +52,14 @@ public class TicketController {
         return ResponseEntity.ok(ApiResponse.success("Ticket retrieved", ticketService.getTicketById(id)));
     }
 
+    // GET /api/tickets/assigned — TECHNICIAN sees tickets assigned to them
+    @GetMapping("/assigned")
+    @PreAuthorize("hasRole('TECHNICIAN')")
+    public ResponseEntity<ApiResponse<List<TicketResponseDTO>>> getAssignedTickets(
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(ApiResponse.success("Assigned tickets retrieved", ticketService.getAssignedTickets(user.getId())));
+    }
+
     // PATCH /api/tickets/{id}/status — ADMIN or TECHNICIAN updates status
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('ADMIN', 'TECHNICIAN')")

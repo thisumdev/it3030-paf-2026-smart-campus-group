@@ -9,6 +9,7 @@ public interface TicketService {
     TicketResponseDTO getTicketById(Long id);
     List<TicketResponseDTO> getAllTickets();
     List<TicketResponseDTO> getMyTickets(Long userId);
+    List<TicketResponseDTO> getAssignedTickets(Long technicianId);
     TicketResponseDTO updateStatus(Long ticketId, StatusUpdateDTO dto);
     void deleteTicket(Long ticketId);
     TicketResponseDTO uploadImages(Long ticketId, List<MultipartFile> files);
