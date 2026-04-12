@@ -11,7 +11,7 @@ import {
 import { useAuth } from "../../auth/context/AuthContext";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getResourceAnalytics } from "../facility/services/facilityApi";
+import { getResourceAnalytics } from "../facilities/services/facilityApi";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, Cell,
