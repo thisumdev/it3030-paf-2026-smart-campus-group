@@ -11,7 +11,7 @@ const TYPE_OPTIONS = [
 
 const STATUS_OPTIONS = [
   { value: "",               label: "All Statuses" },
-  { value: "ACTIVE",         label: "Active" },
+  { value: "AVAILABLE",         label: "Available" },
   { value: "MAINTENANCE",    label: "Maintenance" },
   { value: "OUT_OF_SERVICE", label: "Out of Service" },
 ];

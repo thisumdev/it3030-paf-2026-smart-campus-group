@@ -88,7 +88,7 @@ const FacilitiesAnalyticsPage = () => {
       <div className="mb-6 animate-slide-up">
         <h1 className="text-2xl font-bold text-slate-900">Usage Analytics</h1>
         <p className="text-slate-500 mt-1 text-sm font-medium">
-          Insights into resource utilisation, peak demand, and facility health.
+          Insights into resource utilisation, peak demand and facility health.
         </p>
       </div>
 
@@ -113,7 +113,7 @@ const FacilitiesAnalyticsPage = () => {
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="text-base font-bold text-slate-900">Peak Booking Hours</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Booking volume by hour of day</p>
+              <p className="text-xs text-slate-500 mt-0.5">Booking volume by hour by day</p>
             </div>
             <TrendingUp className="h-5 w-5 text-slate-400" />
           </div>
