@@ -5,11 +5,12 @@ import {
   Bell,
   LogOut,
   ShieldCheck,
+  Wrench,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../auth/context/AuthContext";
 
-const navItems = [
+const baseNavItems = [
   { to: "/user/dashboard", icon: Home, label: "Home" },
   { to: "/user/bookings", icon: Calendar, label: "My Bookings" },
   { to: "/user/tickets", icon: Ticket, label: "My Tickets" },
@@ -17,7 +18,10 @@ const navItems = [
 ];
 
 const UserSidebar = () => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const navItems = user?.role === "TECHNICIAN"
+    ? [...baseNavItems, { to: "/user/tickets/assigned", icon: Wrench, label: "Assigned to Me" }]
+    : baseNavItems;
 
   return (
     <aside className="w-64 bg-gradient-to-b from-white via-slate-50/80 to-slate-100/50 border-r border-slate-200/60 hidden md:flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-20 relative">

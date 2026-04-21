@@ -35,3 +35,18 @@ export const addComment = async (ticketId, commentText) => {
 export const deleteComment = async (ticketId, commentId) => {
   await axiosClient.delete(`/api/tickets/${ticketId}/comments/${commentId}`);
 };
+
+export const fetchAssignedTickets = async () => {
+  const res = await axiosClient.get("/api/tickets/assigned");
+  return res.data.data;
+};
+
+export const updateTicketStatus = async (id, { status, reason, resolutionNotes, assigneeId }) => {
+  const res = await axiosClient.patch(`/api/tickets/${id}/status`, {
+    status,
+    reason: reason || null,
+    resolutionNotes: resolutionNotes || null,
+    assigneeId: assigneeId || null,
+  });
+  return res.data.data;
+};

@@ -15,6 +15,8 @@ import UserManagementPage from "./features/admin/user/pages/UserManagementPage";
 import MyTicketsPage from "./features/tickets/pages/MyTicketsPage";
 import SubmitTicketPage from "./features/tickets/pages/SubmitTicketPage";
 import TicketDetailPage from "./features/tickets/pages/TicketDetailPage";
+import AssignedTicketsPage from "./features/tickets/pages/AssignedTicketsPage";
+import AdminTicketsPage from "./features/admin/tickets/pages/AdminTicketsPage";
 
 function App() {
   return (
@@ -43,6 +45,7 @@ function App() {
             />
             <Route path="/user/tickets" element={<MyTicketsPage />} />
             <Route path="/user/tickets/new" element={<SubmitTicketPage />} />
+            <Route path="/user/tickets/assigned" element={<AssignedTicketsPage />} />
             <Route path="/user/tickets/:id" element={<TicketDetailPage />} />
           </Route>
 
@@ -58,7 +61,7 @@ function App() {
             <Route path="/admin/users" element={<UserManagementPage />} />
             {/* <Route path="/admin/facilities" element={<FacilitiesPage />} /> */}
             {/* <Route path="/admin/bookings" element={<BookingsPage />} /> */}
-            {/* <Route path="/admin/tickets" element={<TicketsPage />} /> */}
+            <Route path="/admin/tickets" element={<AdminTicketsPage />} />
             <Route path="/admin/notifications" element={<NotificationPage />} />
           </Route>
 
