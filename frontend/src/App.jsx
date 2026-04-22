@@ -12,6 +12,11 @@ import NotificationPage from "./features/admin/pages/NotificationPage";
 import AdminLayout from "./features/admin/components/AdminLayout";
 import AdminDashboard from "./features/admin/pages/AdminDashboard";
 import UserManagementPage from "./features/admin/user/pages/UserManagementPage";
+import MyTicketsPage from "./features/tickets/pages/MyTicketsPage";
+import SubmitTicketPage from "./features/tickets/pages/SubmitTicketPage";
+import TicketDetailPage from "./features/tickets/pages/TicketDetailPage";
+import AssignedTicketsPage from "./features/tickets/pages/AssignedTicketsPage";
+import AdminTicketsPage from "./features/admin/tickets/pages/AdminTicketsPage";
 
 // ── Facility routes ───────────────────────────────────────────────────────────
 import FacilitiesCataloguePage from "./features/admin/facilities/pages/FacilitiesCataloguePage";
@@ -38,10 +43,22 @@ function App() {
               </ProtectedRoute>
             }
           >
+<<<<<<< feature/ticketing-maintenance
+            <Route path="/user/dashboard" element={<UserDashboard />} />
+            <Route
+              path="/user/notifications"
+              element={<UserNotificationsPage />}
+            />
+            <Route path="/user/tickets" element={<MyTicketsPage />} />
+            <Route path="/user/tickets/new" element={<SubmitTicketPage />} />
+            <Route path="/user/tickets/assigned" element={<AssignedTicketsPage />} />
+            <Route path="/user/tickets/:id" element={<TicketDetailPage />} />
+=======
             <Route path="/user/dashboard"     element={<UserDashboard />} />
             <Route path="/user/notifications" element={<UserNotificationsPage />} />
             {/* ── User Facilities ── */}
             <Route path="/user/facilities"    element={<UserFacilitiesPage />} />
+>>>>>>> main
           </Route>
 
           {/* Protected — ADMIN only */}
@@ -52,6 +69,14 @@ function App() {
               </ProtectedRoute>
             }
           >
+<<<<<<< feature/ticketing-maintenance
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<UserManagementPage />} />
+            {/* <Route path="/admin/facilities" element={<FacilitiesPage />} /> */}
+            {/* <Route path="/admin/bookings" element={<BookingsPage />} /> */}
+            <Route path="/admin/tickets" element={<AdminTicketsPage />} />
+            <Route path="/admin/notifications" element={<NotificationPage />} />
+=======
              {/* <Route path="/admin/facilities" element={<FacilitiesPage />} /> */}
              {/* <Route path="/admin/bookings" element={<BookingsPage />} /> */}
              {/* <Route path="/admin/tickets" element={<TicketsPage />} /> */}
@@ -63,6 +88,7 @@ function App() {
             <Route path="/admin/facilities"           element={<FacilitiesCataloguePage />} />
             <Route path="/admin/facilities/analytics" element={<FacilitiesAnalyticsPage />} />
             <Route path="/admin/notifications"        element={<NotificationPage />} />
+>>>>>>> main
           </Route>
 
           <Route path="*" element={<Navigate to="/login" replace />} />
