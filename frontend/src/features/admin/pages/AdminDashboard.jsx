@@ -13,37 +13,47 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getResourceAnalytics } from "../facilities/services/facilityApi";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, LineChart, Line, Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  Cell,
 } from "recharts";
 
 const COLORS = ["#1e293b", "#10b981", "#f59e0b", "#3b82f6", "#8b5cf6"];
 
 const HOUR_LABELS = (h) => {
-  if (h === 0)  return "12am";
-  if (h < 12)   return `${h}am`;
+  if (h === 0) return "12am";
+  if (h < 12) return `${h}am`;
   if (h === 12) return "12pm";
   return `${h - 12}pm`;
 };
 
 const AdminDashboard = () => {
-  const { user }   = useAuth();
-  const navigate   = useNavigate();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [analytics, setAnalytics] = useState(null);
 
   useEffect(() => {
     getResourceAnalytics()
       .then((res) => setAnalytics(res.data.data))
-      .catch(() => {/* silently ignore — charts just show placeholders */});
+      .catch(() => {
+        /* silently ignore — charts just show placeholders */
+      });
   }, []);
 
   const peakData = (analytics?.peakHours || []).map((h) => ({
-    hour:  HOUR_LABELS(h.hour),
+    hour: HOUR_LABELS(h.hour),
     count: h.bookingCount,
   }));
 
   const topData = (analytics?.topResources || []).map((r) => ({
-    name:  r.name.length > 18 ? r.name.substring(0, 18) + "…" : r.name,
+    name: r.name.length > 18 ? r.name.substring(0, 18) + "…" : r.name,
     count: r.bookingCount,
   }));
 
@@ -69,13 +79,17 @@ const AdminDashboard = () => {
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="premium-glass rounded-2xl p-6 flex flex-col group animate-slide-up delay-75">
+        {/* Total Resources — live */}
+        <div
+          onClick={() => navigate("/admin/facilities")}
+          className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col hover:shadow-xl hover:-translate-y-1 transition-all duration-300 animate-slide-up delay-75 group cursor-pointer"
+        >
           <div className="flex items-center justify-between mb-2">
             <div className="h-10 w-10 bg-blue-50 rounded-xl flex items-center justify-center text-primary-900 group-hover:scale-110 group-hover:bg-primary-900 group-hover:text-white transition-all duration-300 shadow-sm">
               <MapPin className="h-5 w-5" />
             </div>
-            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100/50">
-              +12%
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
+              {analytics ? `${analytics.activeResources} Active` : "—"}
             </span>
           </div>
           <h3 className="text-3xl font-extrabold text-slate-900 mt-2 mb-1">
@@ -93,7 +107,9 @@ const AdminDashboard = () => {
               Today
             </span>
           </div>
-          <h3 className="text-3xl font-extrabold text-slate-900 mt-2 mb-1">84</h3>
+          <h3 className="text-3xl font-extrabold text-slate-900 mt-2 mb-1">
+            84
+          </h3>
           <p className="text-slate-500 text-sm font-medium">Bookings Today</p>
         </div>
 
@@ -106,7 +122,9 @@ const AdminDashboard = () => {
               +5 New
             </span>
           </div>
-          <h3 className="text-3xl font-extrabold text-slate-900 mt-2 mb-1">17</h3>
+          <h3 className="text-3xl font-extrabold text-slate-900 mt-2 mb-1">
+            17
+          </h3>
           <p className="text-slate-500 text-sm font-medium">Open Tickets</p>
         </div>
 
@@ -119,7 +137,9 @@ const AdminDashboard = () => {
               Active
             </span>
           </div>
-          <h3 className="text-3xl font-extrabold text-slate-900 mt-2 mb-1">2,405</h3>
+          <h3 className="text-3xl font-extrabold text-slate-900 mt-2 mb-1">
+            2,405
+          </h3>
           <p className="text-slate-500 text-sm font-medium">Registered Users</p>
         </div>
       </div>
@@ -144,20 +164,38 @@ const AdminDashboard = () => {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={peakData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="hour" tick={{ fontSize: 10, fill: "#94a3b8" }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#94a3b8" }} />
+                <XAxis
+                  dataKey="hour"
+                  tick={{ fontSize: 10, fill: "#94a3b8" }}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 10, fill: "#94a3b8" }}
+                />
                 <Tooltip
-                  contentStyle={{ borderRadius: "10px", border: "1px solid #e2e8f0", fontSize: 12 }}
+                  contentStyle={{
+                    borderRadius: "10px",
+                    border: "1px solid #e2e8f0",
+                    fontSize: 12,
+                  }}
                   formatter={(v) => [v, "Bookings"]}
                 />
-                <Line type="monotone" dataKey="count" stroke="#1e293b" strokeWidth={2.5}
-                  dot={{ fill: "#1e293b", r: 3 }} activeDot={{ r: 5 }} />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#1e293b"
+                  strokeWidth={2.5}
+                  dot={{ fill: "#1e293b", r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex-1 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center">
               <Activity className="h-10 w-10 text-slate-300 mb-2" />
-              <p className="text-slate-400 text-sm font-medium">No booking data yet</p>
+              <p className="text-slate-400 text-sm font-medium">
+                No booking data yet
+              </p>
             </div>
           )}
         </div>
@@ -188,10 +226,20 @@ const AdminDashboard = () => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#94a3b8" }} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 10, fill: "#94a3b8" }}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 10, fill: "#94a3b8" }}
+                />
                 <Tooltip
-                  contentStyle={{ borderRadius: "10px", border: "1px solid #e2e8f0", fontSize: 12 }}
+                  contentStyle={{
+                    borderRadius: "10px",
+                    border: "1px solid #e2e8f0",
+                    fontSize: 12,
+                  }}
                   formatter={(v) => [v, "Bookings"]}
                 />
                 <Bar dataKey="count" radius={[6, 6, 0, 0]}>
@@ -210,7 +258,9 @@ const AdminDashboard = () => {
                 <div className="w-12 bg-accent-amber rounded-t-sm h-12" />
                 <div className="w-12 bg-blue-300 rounded-t-sm h-24" />
               </div>
-              <p className="text-slate-400 text-sm font-medium mt-4">No booking data yet</p>
+              <p className="text-slate-400 text-sm font-medium mt-4">
+                No booking data yet
+              </p>
             </div>
           )}
         </div>
@@ -220,7 +270,9 @@ const AdminDashboard = () => {
       {analytics && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 animate-slide-up">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-900">Resource Health</h2>
+            <h2 className="text-base font-bold text-slate-900">
+              Resource Health
+            </h2>
             <button
               onClick={() => navigate("/admin/facilities")}
               className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900 font-medium transition-colors"
@@ -230,14 +282,27 @@ const AdminDashboard = () => {
           </div>
           <div className="flex gap-4 flex-wrap">
             {[
-              { label: "Active",          value: analytics.activeResources,       color: "bg-emerald-500" },
-              { label: "Maintenance",     value: analytics.maintenanceResources,  color: "bg-amber-500"   },
-              { label: "Out of Service",  value: analytics.outOfServiceResources, color: "bg-red-500"     },
+              {
+                label: "Active",
+                value: analytics.activeResources,
+                color: "bg-emerald-500",
+              },
+              {
+                label: "Maintenance",
+                value: analytics.maintenanceResources,
+                color: "bg-amber-500",
+              },
+              {
+                label: "Out of Service",
+                value: analytics.outOfServiceResources,
+                color: "bg-red-500",
+              },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center gap-2">
                 <span className={`h-3 w-3 rounded-full ${color}`} />
                 <span className="text-sm text-slate-600">
-                  <span className="font-bold text-slate-900">{value}</span> {label}
+                  <span className="font-bold text-slate-900">{value}</span>{" "}
+                  {label}
                 </span>
               </div>
             ))}
@@ -245,9 +310,9 @@ const AdminDashboard = () => {
           {/* Visual bar */}
           <div className="mt-4 h-3 rounded-full overflow-hidden flex gap-0.5">
             {[
-              { value: analytics.activeResources,       color: "bg-emerald-500" },
-              { value: analytics.maintenanceResources,  color: "bg-amber-500"   },
-              { value: analytics.outOfServiceResources, color: "bg-red-500"     },
+              { value: analytics.activeResources, color: "bg-emerald-500" },
+              { value: analytics.maintenanceResources, color: "bg-amber-500" },
+              { value: analytics.outOfServiceResources, color: "bg-red-500" },
             ]
               .filter((s) => s.value > 0)
               .map(({ value, color }, i) => (
