@@ -55,4 +55,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("to") LocalDateTime to);
 
     Optional<Booking> findByCheckInToken(String checkInToken);
+
+    List<Booking> findByResourceIdAndStatus(Long resourceId, BookingStatus status);
 }

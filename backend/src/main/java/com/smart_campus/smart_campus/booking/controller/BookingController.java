@@ -15,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bookings")
@@ -83,6 +84,12 @@ public class BookingController {
     @PostMapping("/checkin")
     public ResponseEntity<BookingResponseDTO> checkIn(@RequestParam String token) {
         return ResponseEntity.ok(bookingService.checkIn(token));
+    }
+
+    @GetMapping("/public/calendar")
+    public ResponseEntity<List<Map<String, Object>>> getPublicCalendarEvents(
+            @RequestParam(required = false) Long resourceId) {
+        return ResponseEntity.ok(bookingService.getPublicCalendarEvents(resourceId));
     }
 
     private Long getCurrentUserId() {

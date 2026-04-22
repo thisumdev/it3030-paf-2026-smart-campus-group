@@ -32,3 +32,8 @@ export const getCalendarEvents = (resourceId, from, to) =>
 
 export const getResources = () =>
   axiosClient.get("/api/resources");
+
+export const getPublicCalendarEvents = (resourceId) =>
+  axiosClient.get("/api/bookings/public/calendar", {
+    params: resourceId ? { resourceId } : {},
+  });

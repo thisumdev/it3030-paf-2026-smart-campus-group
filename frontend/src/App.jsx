@@ -23,6 +23,8 @@ import FacilitiesCataloguePage from "./features/admin/facilities/pages/Facilitie
 import FacilitiesAnalyticsPage from "./features/admin/facilities/pages/FacilitiesAnalyticsPage";
 import UserFacilitiesPage from "./features/facilities/pages/UserFacilitiesPage";
 import BookingCalendar from "./features/booking/pages/BookingCalendar";
+import AdminBookingsPage from "./features/admin/booking/pages/AdminBookingsPage";
+import ResourceBookingPage from "./features/booking/pages/ResourceBookingPage";
 
 function App() {
   return (
@@ -64,6 +66,7 @@ function App() {
             {/* ── User Facilities ── */}
             <Route path="/user/facilities" element={<UserFacilitiesPage />} />
             <Route path="/user/bookings" element={<BookingCalendar />} />
+            <Route path="/user/book/:resourceId" element={<ResourceBookingPage />} />
           </Route>
 
           {/* Protected — ADMIN only */}
@@ -92,7 +95,7 @@ function App() {
               path="/admin/facilities"
               element={<FacilitiesCataloguePage />}
             />
-            <Route path="/admin/bookings" element={<BookingCalendar />} />
+            <Route path="/admin/bookings" element={<AdminBookingsPage />} />
             <Route
               path="/admin/facilities/analytics"
               element={<FacilitiesAnalyticsPage />}

@@ -10,6 +10,8 @@ import com.smart_campus.smart_campus.booking.exception.BookingNotFoundException;
 import com.smart_campus.smart_campus.booking.repository.BookingRepository;
 import com.smart_campus.smart_campus.facility.entity.Resource;
 import com.smart_campus.smart_campus.facility.repository.ResourceRepository;
+import com.smart_campus.smart_campus.notifications.entity.Notification.NotificationType;
+import com.smart_campus.smart_campus.notifications.service.NotificationService;
 import com.smart_campus.smart_campus.user.entity.User;
 import com.smart_campus.smart_campus.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -29,6 +33,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final ResourceRepository resourceRepository;
+    private final NotificationService notificationService;
 
     public BookingResponseDTO createBooking(Long userId, BookingRequestDTO dto) {
         User user = userRepository.findById(userId)
@@ -63,6 +68,16 @@ public class BookingService {
                 .build();
 
         Booking saved = bookingRepository.save(booking);
+        notificationService.notify(
+                user.getId(),
+                NotificationType.BOOKING_PENDING,
+                "Your booking for " + resource.getName() + " on " +
+                        dto.getStartTime().toLocalDate() + " from " +
+                        dto.getStartTime().toLocalTime().withSecond(0).withNano(0) + " to " +
+                        dto.getEndTime().toLocalTime().withSecond(0).withNano(0) + " has been submitted and is awaiting approval.",
+                saved.getId(),
+                "BOOKING"
+        );
         return BookingResponseDTO.fromEntity(saved);
     }
 
@@ -93,7 +108,18 @@ public class BookingService {
         }
 
         booking.setStatus(BookingStatus.APPROVED);
-        return BookingResponseDTO.fromEntity(bookingRepository.save(booking));
+        Booking approvedBooking = bookingRepository.save(booking);
+        notificationService.notify(
+                booking.getUser().getId(),
+                NotificationType.BOOKING_APPROVED,
+                "Your booking for " + booking.getResource().getName() + " on " +
+                        booking.getStartTime().toLocalDate() + " from " +
+                        booking.getStartTime().toLocalTime().withSecond(0).withNano(0) + " to " +
+                        booking.getEndTime().toLocalTime().withSecond(0).withNano(0) + " has been approved.",
+                booking.getId(),
+                "BOOKING"
+        );
+        return BookingResponseDTO.fromEntity(approvedBooking);
     }
 
     public BookingResponseDTO rejectBooking(Long bookingId, Long adminUserId, String reason) {
@@ -106,7 +132,16 @@ public class BookingService {
 
         booking.setStatus(BookingStatus.REJECTED);
         booking.setRejectionReason(reason);
-        return BookingResponseDTO.fromEntity(bookingRepository.save(booking));
+        Booking rejectedBooking = bookingRepository.save(booking);
+        notificationService.notify(
+                booking.getUser().getId(),
+                NotificationType.BOOKING_REJECTED,
+                "Your booking for " + booking.getResource().getName() + " on " +
+                        booking.getStartTime().toLocalDate() + " has been rejected. Reason: " + reason,
+                booking.getId(),
+                "BOOKING"
+        );
+        return BookingResponseDTO.fromEntity(rejectedBooking);
     }
 
     public BookingResponseDTO cancelBooking(Long bookingId, Long requestingUserId) {
@@ -128,7 +163,16 @@ public class BookingService {
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
-        return BookingResponseDTO.fromEntity(bookingRepository.save(booking));
+        Booking cancelledBooking = bookingRepository.save(booking);
+        notificationService.notify(
+                booking.getUser().getId(),
+                NotificationType.BOOKING_CANCELLED,
+                "Your booking for " + booking.getResource().getName() + " on " +
+                        booking.getStartTime().toLocalDate() + " has been cancelled.",
+                booking.getId(),
+                "BOOKING"
+        );
+        return BookingResponseDTO.fromEntity(cancelledBooking);
     }
 
     public BookingResponseDTO checkIn(String token) {
@@ -154,5 +198,24 @@ public class BookingService {
         return bookingRepository.findPastBookingsByUserId(userId, LocalDateTime.now()).stream()
                 .map(BookingResponseDTO::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    public List<Map<String, Object>> getPublicCalendarEvents(Long resourceId) {
+        List<Booking> bookings;
+        if (resourceId != null) {
+            bookings = bookingRepository.findByResourceIdAndStatus(resourceId, BookingStatus.APPROVED);
+        } else {
+            bookings = bookingRepository.findByStatus(BookingStatus.APPROVED);
+        }
+        return bookings.stream().map(b -> {
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("id", b.getId());
+            event.put("resourceId", b.getResource().getId());
+            event.put("resourceName", b.getResource().getName());
+            event.put("startTime", b.getStartTime());
+            event.put("endTime", b.getEndTime());
+            event.put("status", "BOOKED");
+            return event;
+        }).collect(Collectors.toList());
     }
 }
