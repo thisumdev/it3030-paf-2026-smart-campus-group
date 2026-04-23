@@ -34,6 +34,7 @@ public class BookingService {
     private final UserRepository userRepository;
     private final ResourceRepository resourceRepository;
     private final NotificationService notificationService;
+    private final BookingEmailService bookingEmailService;
 
     public BookingResponseDTO createBooking(Long userId, BookingRequestDTO dto) {
         User user = userRepository.findById(userId)
@@ -119,6 +120,21 @@ public class BookingService {
                 booking.getId(),
                 "BOOKING"
         );
+        try {
+            bookingEmailService.sendBookingApprovalEmail(
+                    booking.getUser().getEmail(),
+                    booking.getUser().getFullName(),
+                    booking.getResource().getName(),
+                    booking.getResource().getLocation(),
+                    booking.getStartTime(),
+                    booking.getEndTime(),
+                    booking.getPurpose(),
+                    booking.getAttendees(),
+                    booking.getCheckInToken()
+            );
+        } catch (Exception e) {
+            System.err.println("Failed to send approval email: " + e.getMessage());
+        }
         return BookingResponseDTO.fromEntity(approvedBooking);
     }
 

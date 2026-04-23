@@ -46,7 +46,9 @@ const AdminBookingsPage = () => {
     setError("");
     try {
       const res = await getAllBookings();
-      setBookings(res.data.data || res.data || []);
+      const data = res.data.data || res.data || [];
+      const arr = Array.isArray(data) ? data : [];
+      setBookings(arr.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
     } catch {
       setError("Failed to load bookings. Please try again.");
     } finally {

@@ -3,11 +3,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { useState, useEffect } from "react";
-import {
-  getMyBookings,
-  cancelBooking,
-  getPublicCalendarEvents,
-} from "../../../api/bookingApi";
+import { getMyBookings, cancelBooking } from "../../../api/bookingApi";
 import {
   X,
   Calendar,
@@ -50,23 +46,19 @@ const eventBg = (status) => {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 const BookingCalendar = () => {
-  const [bookings, setBookings]           = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [error, setError]                 = useState(null);
+  const [bookings, setBookings]               = useState([]);
+  const [loading, setLoading]                 = useState(true);
+  const [error, setError]                     = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [blockedSlots, setBlockedSlots]   = useState([]);
+  const [hideCancelledRejected, setHideCancelledRejected] = useState(false);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
 
   const fetchData = async () => {
     try {
       setError(null);
-      const [bookingsRes, blockedRes] = await Promise.all([
-        getMyBookings(),
-        getPublicCalendarEvents(),
-      ]);
+      const bookingsRes = await getMyBookings();
       setBookings(bookingsRes.data.data || bookingsRes.data || []);
-      setBlockedSlots(blockedRes.data.data || blockedRes.data || []);
     } catch {
       setError("Failed to load calendar data. Please try again.");
     } finally {
@@ -80,9 +72,11 @@ const BookingCalendar = () => {
 
   // ── Calendar events ───────────────────────────────────────────────────────
 
-  const myBookingIds = new Set(bookings.map((b) => b.id));
+  const filteredBookings = hideCancelledRejected
+    ? bookings.filter((b) => b.status !== "CANCELLED" && b.status !== "REJECTED")
+    : bookings;
 
-  const myEvents = bookings.map((b) => ({
+  const calendarEvents = filteredBookings.map((b) => ({
     id: b.id,
     title: b.purpose,
     start: b.startTime,
@@ -92,26 +86,9 @@ const BookingCalendar = () => {
     extendedProps: { ...b },
   }));
 
-  const blockedEvents = blockedSlots
-    .filter((b) => !myBookingIds.has(b.id))
-    .map((b) => ({
-      id: "blocked-" + b.id,
-      title: "🔒 " + b.resourceName,
-      start: b.startTime,
-      end: b.endTime,
-      backgroundColor: "#94a3b8",
-      borderColor: "transparent",
-      textColor: "#475569",
-      display: "block",
-      extendedProps: { isBlocked: true },
-    }));
-
-  const calendarEvents = [...myEvents, ...blockedEvents];
-
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleEventClick = (info) => {
-    if (info.event.extendedProps.isBlocked) return;
     setSelectedBooking(info.event.extendedProps);
   };
 
@@ -156,7 +133,7 @@ const BookingCalendar = () => {
         {/* ── Left: Calendar ─────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0">
           {/* Legend */}
-          <div className="premium-glass rounded-2xl p-4 mb-4 flex flex-wrap items-center gap-4">
+          <div className="premium-glass rounded-2xl p-4 mb-4 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4 text-xs font-medium text-slate-600">
               <span className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block" />
@@ -170,11 +147,17 @@ const BookingCalendar = () => {
                 <span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" />
                 Cancelled / Rejected
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-slate-400 inline-block" />
-                Others' bookings
-              </span>
             </div>
+            <button
+              onClick={() => setHideCancelledRejected((v) => !v)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                hideCancelledRejected
+                  ? "bg-slate-900 text-white border-slate-900"
+                  : "border-slate-200 text-slate-600 hover:border-slate-400 bg-white"
+              }`}
+            >
+              {hideCancelledRejected ? "👁 Show All" : "🚫 Hide Cancelled/Rejected"}
+            </button>
           </div>
 
           {/* Calendar */}
