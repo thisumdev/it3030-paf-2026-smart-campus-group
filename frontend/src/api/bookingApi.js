@@ -24,6 +24,9 @@ export const rejectBooking = (id, reason) =>
 export const cancelBooking = (id) =>
   axiosClient.put(`/api/bookings/${id}/cancel`);
 
+export const restoreBooking = (id) =>
+  axiosClient.put(`/api/bookings/${id}/restore`);
+
 export const checkIn = (token) =>
   axiosClient.post(`/api/bookings/checkin?token=${token}`);
 
@@ -37,3 +40,9 @@ export const getPublicCalendarEvents = (resourceId) =>
   axiosClient.get("/api/bookings/public/calendar", {
     params: resourceId ? { resourceId } : {},
   });
+
+export const getCheckedInBookings = () =>
+  axiosClient.get("/api/bookings/checkins");
+
+export const getNoShowBookings = () =>
+  axiosClient.get("/api/bookings/no-shows");

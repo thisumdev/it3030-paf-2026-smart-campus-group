@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   MapPin,
   CalendarCheck,
+  ClipboardCheck,
   MessagesSquare,
   Megaphone,
   Settings,
@@ -44,6 +45,13 @@ const NAV_ITEMS = [
     label: "All Bookings",
     Icon: CalendarCheck,
     hoverColor: "group-hover:text-accent-amber",
+  },
+  {
+    to: "/admin/bookings/checkins",
+    label: "Check-in Records",
+    Icon: ClipboardCheck,
+    hoverColor: "group-hover:text-accent-amber",
+    indent: true,
   },
   {
     to: "/admin/tickets",

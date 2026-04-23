@@ -3,6 +3,7 @@ package com.smart_campus.smart_campus.booking.controller;
 import com.smart_campus.smart_campus.booking.dto.BookingRequestDTO;
 import com.smart_campus.smart_campus.booking.dto.BookingResponseDTO;
 import com.smart_campus.smart_campus.booking.dto.BookingStatusUpdateDTO;
+import com.smart_campus.smart_campus.booking.entity.BookingStatus;
 import com.smart_campus.smart_campus.booking.service.BookingService;
 import com.smart_campus.smart_campus.user.entity.User;
 import jakarta.validation.Valid;
@@ -90,6 +91,32 @@ public class BookingController {
     public ResponseEntity<List<Map<String, Object>>> getPublicCalendarEvents(
             @RequestParam(required = false) Long resourceId) {
         return ResponseEntity.ok(bookingService.getPublicCalendarEvents(resourceId));
+    }
+
+    @GetMapping("/checkins")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getCheckedInBookings() {
+        return ResponseEntity.ok(bookingService.getCheckedInBookings());
+    }
+
+    @GetMapping("/no-shows")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getNoShowBookings() {
+        return ResponseEntity.ok(bookingService.getBookingsByStatus(BookingStatus.PENDING_REVIEW));
+    }
+
+    @GetMapping("/pending-review")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getPendingReviewBookings() {
+        return ResponseEntity.ok(bookingService.getBookingsByStatus(BookingStatus.PENDING_REVIEW));
+    }
+
+    @PutMapping("/{id}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> restoreBooking(@PathVariable Long id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long adminId = ((com.smart_campus.smart_campus.user.entity.User) auth.getPrincipal()).getId();
+        return ResponseEntity.ok(bookingService.restoreBooking(id, adminId));
     }
 
     private Long getCurrentUserId() {

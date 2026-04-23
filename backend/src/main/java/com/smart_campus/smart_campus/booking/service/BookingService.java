@@ -216,6 +216,37 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
+    public List<BookingResponseDTO> getCheckedInBookings() {
+        return bookingRepository.findAll().stream()
+                .filter(b -> b.getCheckedInAt() != null)
+                .sorted((a, b) -> b.getCheckedInAt().compareTo(a.getCheckedInAt()))
+                .map(BookingResponseDTO::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    public List<BookingResponseDTO> getBookingsByStatus(BookingStatus status) {
+        return bookingRepository.findByStatus(status)
+                .stream()
+                .map(BookingResponseDTO::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    public BookingResponseDTO restoreBooking(Long bookingId, Long adminUserId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException(bookingId));
+        booking.setStatus(BookingStatus.APPROVED);
+        Booking saved = bookingRepository.save(booking);
+        notificationService.notify(
+                booking.getUser().getId(),
+                NotificationType.BOOKING_APPROVED,
+                "Your booking for " + booking.getResource().getName() + " on " +
+                        booking.getStartTime().toLocalDate() + " has been restored by admin.",
+                booking.getId(),
+                "BOOKING"
+        );
+        return BookingResponseDTO.fromEntity(saved);
+    }
+
     public List<Map<String, Object>> getPublicCalendarEvents(Long resourceId) {
         List<Booking> bookings;
         if (resourceId != null) {

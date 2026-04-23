@@ -6,7 +6,7 @@ import {
   AlertCircle,
   CalendarCheck,
 } from "lucide-react";
-import { getAllBookings, approveBooking, rejectBooking } from "../../../../api/bookingApi";
+import { getAllBookings, approveBooking, rejectBooking, cancelBooking, restoreBooking } from "../../../../api/bookingApi";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -21,13 +21,14 @@ const formatDateTime = (dateStr) => {
   });
 };
 
-const STATUS_FILTERS = ["ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED"];
+const STATUS_FILTERS = ["ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED", "PENDING_REVIEW"];
 
 const STATUS_BADGE = {
-  PENDING:   "bg-amber-100 text-amber-700",
-  APPROVED:  "bg-emerald-100 text-emerald-700",
-  REJECTED:  "bg-red-100 text-red-700",
-  CANCELLED: "bg-slate-100 text-slate-500",
+  PENDING:        "bg-amber-100 text-amber-700",
+  APPROVED:       "bg-emerald-100 text-emerald-700",
+  REJECTED:       "bg-red-100 text-red-700",
+  CANCELLED:      "bg-slate-100 text-slate-500",
+  PENDING_REVIEW: "bg-purple-100 text-purple-700",
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -85,6 +86,30 @@ const AdminBookingsPage = () => {
     }
   };
 
+  const handleRestore = async (booking) => {
+    setActionLoading(true);
+    try {
+      await restoreBooking(booking.id);
+      fetchBookings();
+    } catch {
+      setError("Failed to restore booking.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancel = async (booking) => {
+    setActionLoading(true);
+    try {
+      await cancelBooking(booking.id);
+      fetchBookings();
+    } catch {
+      setError("Failed to cancel booking.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const filtered = statusFilter === "ALL"
     ? bookings
     : bookings.filter((b) => b.status === statusFilter);
@@ -124,7 +149,11 @@ const AdminBookingsPage = () => {
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
-            {s === "ALL" ? "All" : s.charAt(0) + s.slice(1).toLowerCase()}
+            {s === "ALL"
+              ? "All"
+              : s === "PENDING_REVIEW"
+              ? "Review"
+              : s.charAt(0) + s.slice(1).toLowerCase()}
             <span
               className={`inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-bold ${
                 statusFilter === s ? "bg-white/20 text-white" : "bg-white text-slate-500"
@@ -209,10 +238,12 @@ const AdminBookingsPage = () => {
               <span
                 className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${STATUS_BADGE[booking.status] ?? "bg-slate-100 text-slate-500"}`}
               >
-                {booking.status.charAt(0) + booking.status.slice(1).toLowerCase()}
+                {booking.status === "PENDING_REVIEW"
+                  ? "Pending review"
+                  : booking.status.charAt(0) + booking.status.slice(1).toLowerCase()}
               </span>
 
-              {/* Action buttons — PENDING only */}
+              {/* Action buttons — PENDING */}
               {booking.status === "PENDING" && (
                 <div className="flex items-center gap-1 ml-1 shrink-0">
                   <button
@@ -229,6 +260,32 @@ const AdminBookingsPage = () => {
                     onClick={() => { setRejectTarget(booking); setRejectReason(""); }}
                     disabled={actionLoading}
                     title="Reject"
+                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {actionLoading
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <XCircle className="h-4 w-4" />}
+                  </button>
+                </div>
+              )}
+
+              {/* Action buttons — PENDING_REVIEW */}
+              {booking.status === "PENDING_REVIEW" && (
+                <div className="flex items-center gap-1 ml-1 shrink-0">
+                  <button
+                    onClick={() => handleRestore(booking)}
+                    disabled={actionLoading}
+                    title="Restore"
+                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {actionLoading
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <CheckCircle className="h-4 w-4" />}
+                  </button>
+                  <button
+                    onClick={() => handleCancel(booking)}
+                    disabled={actionLoading}
+                    title="Cancel"
                     className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                   >
                     {actionLoading

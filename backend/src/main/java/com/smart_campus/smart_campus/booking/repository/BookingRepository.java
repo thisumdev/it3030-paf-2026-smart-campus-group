@@ -57,4 +57,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     Optional<Booking> findByCheckInToken(String checkInToken);
 
     List<Booking> findByResourceIdAndStatus(Long resourceId, BookingStatus status);
+
+    List<Booking> findByStatusOrderByStartTimeDesc(BookingStatus status);
 }

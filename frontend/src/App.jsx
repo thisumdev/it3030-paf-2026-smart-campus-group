@@ -25,6 +25,8 @@ import UserFacilitiesPage from "./features/facilities/pages/UserFacilitiesPage";
 import BookingCalendar from "./features/booking/pages/BookingCalendar";
 import AdminBookingsPage from "./features/admin/booking/pages/AdminBookingsPage";
 import ResourceBookingPage from "./features/booking/pages/ResourceBookingPage";
+import CheckInPage from "./features/booking/pages/CheckInPage";
+import CheckInRecordsPage from "./features/admin/booking/pages/CheckInRecordsPage";
 
 function App() {
   return (
@@ -37,6 +39,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route path="/checkin" element={<CheckInPage />} />
 
           {/* Protected — USER routes */}
           <Route
@@ -96,6 +99,7 @@ function App() {
               element={<FacilitiesCataloguePage />}
             />
             <Route path="/admin/bookings" element={<AdminBookingsPage />} />
+            <Route path="/admin/bookings/checkins" element={<CheckInRecordsPage />} />
             <Route
               path="/admin/facilities/analytics"
               element={<FacilitiesAnalyticsPage />}
