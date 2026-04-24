@@ -102,13 +102,7 @@ public class BookingController {
     @GetMapping("/no-shows")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getNoShowBookings() {
-        return ResponseEntity.ok(bookingService.getBookingsByStatus(BookingStatus.PENDING_REVIEW));
-    }
-
-    @GetMapping("/pending-review")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> getPendingReviewBookings() {
-        return ResponseEntity.ok(bookingService.getBookingsByStatus(BookingStatus.PENDING_REVIEW));
+        return ResponseEntity.ok(bookingService.getBookingsByStatus(BookingStatus.AUTO_CANCELLED));
     }
 
     @PutMapping("/{id}/restore")
@@ -117,6 +111,13 @@ public class BookingController {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Long adminId = ((com.smart_campus.smart_campus.user.entity.User) auth.getPrincipal()).getId();
         return ResponseEntity.ok(bookingService.restoreBooking(id, adminId));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> deleteBooking(@PathVariable Long id) {
+        bookingService.deleteBooking(id);
+        return ResponseEntity.ok(Map.of("message", "Booking deleted successfully"));
     }
 
     private Long getCurrentUserId() {

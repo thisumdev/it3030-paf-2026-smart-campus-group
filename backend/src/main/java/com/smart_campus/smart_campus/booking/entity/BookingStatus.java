@@ -5,5 +5,5 @@ public enum BookingStatus {
     APPROVED,
     REJECTED,
     CANCELLED,
-    PENDING_REVIEW
+    AUTO_CANCELLED
 }

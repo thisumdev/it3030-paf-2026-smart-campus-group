@@ -6,27 +6,33 @@ import com.smart_campus.smart_campus.booking.repository.BookingRepository;
 import com.smart_campus.smart_campus.notifications.entity.Notification.NotificationType;
 import com.smart_campus.smart_campus.notifications.service.NotificationService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
-@EnableScheduling
 @RequiredArgsConstructor
 public class BookingScheduler {
+
+    private static final Logger log = LoggerFactory.getLogger(BookingScheduler.class);
 
     private final BookingRepository bookingRepository;
     private final NotificationService notificationService;
 
     @Scheduled(fixedDelay = 60000)
+    @Transactional
     public void autoMarkNoShows() {
+        log.info(">>> autoMarkNoShows running at {}", LocalDateTime.now());
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(15);
         List<Booking> noShows = bookingRepository.findNoShowBookings(cutoff);
+        log.info(">>> Found {} no-show bookings", noShows.size());
         for (Booking booking : noShows) {
-            booking.setStatus(BookingStatus.PENDING_REVIEW);
+            booking.setStatus(BookingStatus.AUTO_CANCELLED);
             bookingRepository.save(booking);
 
             notificationService.notify(
@@ -34,7 +40,7 @@ public class BookingScheduler {
                     NotificationType.BOOKING_CANCELLED,
                     "Your booking for " + booking.getResource().getName() + " on " +
                             booking.getStartTime().toLocalDate() +
-                            " was not checked in and has been flagged for review.",
+                            " was automatically cancelled because no check-in was recorded within 15 minutes of the start time.",
                     booking.getId(),
                     "BOOKING"
             );
@@ -42,6 +48,7 @@ public class BookingScheduler {
     }
 
     @Scheduled(fixedDelay = 300000)
+    @Transactional
     public void sendBookingReminders() {
         LocalDateTime from = LocalDateTime.now().plusMinutes(25);
         LocalDateTime to   = LocalDateTime.now().plusMinutes(35);

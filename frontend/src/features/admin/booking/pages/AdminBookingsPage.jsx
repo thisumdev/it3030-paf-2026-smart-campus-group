@@ -5,8 +5,9 @@ import {
   Loader2,
   AlertCircle,
   CalendarCheck,
+  Trash2,
 } from "lucide-react";
-import { getAllBookings, approveBooking, rejectBooking, cancelBooking, restoreBooking } from "../../../../api/bookingApi";
+import { getAllBookings, approveBooking, rejectBooking, cancelBooking, restoreBooking, deleteBooking } from "../../../../api/bookingApi";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -21,14 +22,14 @@ const formatDateTime = (dateStr) => {
   });
 };
 
-const STATUS_FILTERS = ["ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED", "PENDING_REVIEW"];
+const STATUS_FILTERS = ["ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED", "AUTO_CANCELLED"];
 
 const STATUS_BADGE = {
   PENDING:        "bg-amber-100 text-amber-700",
   APPROVED:       "bg-emerald-100 text-emerald-700",
   REJECTED:       "bg-red-100 text-red-700",
   CANCELLED:      "bg-slate-100 text-slate-500",
-  PENDING_REVIEW: "bg-purple-100 text-purple-700",
+  AUTO_CANCELLED: "bg-red-100 text-red-700",
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -41,6 +42,8 @@ const AdminBookingsPage = () => {
   const [rejectTarget, setRejectTarget]   = useState(null);
   const [rejectReason, setRejectReason]   = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget]   = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -110,6 +113,19 @@ const AdminBookingsPage = () => {
     }
   };
 
+  const handleDeleteConfirm = async () => {
+    setDeleteLoading(true);
+    try {
+      await deleteBooking(deleteTarget.id);
+      setDeleteTarget(null);
+      fetchBookings();
+    } catch {
+      setError("Failed to delete booking.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const filtered = statusFilter === "ALL"
     ? bookings
     : bookings.filter((b) => b.status === statusFilter);
@@ -151,8 +167,8 @@ const AdminBookingsPage = () => {
           >
             {s === "ALL"
               ? "All"
-              : s === "PENDING_REVIEW"
-              ? "Review"
+              : s === "AUTO_CANCELLED"
+              ? "Auto-Cancelled"
               : s.charAt(0) + s.slice(1).toLowerCase()}
             <span
               className={`inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-bold ${
@@ -238,8 +254,8 @@ const AdminBookingsPage = () => {
               <span
                 className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${STATUS_BADGE[booking.status] ?? "bg-slate-100 text-slate-500"}`}
               >
-                {booking.status === "PENDING_REVIEW"
-                  ? "Pending review"
+                {booking.status === "AUTO_CANCELLED"
+                  ? "Auto-Cancelled"
                   : booking.status.charAt(0) + booking.status.slice(1).toLowerCase()}
               </span>
 
@@ -269,8 +285,8 @@ const AdminBookingsPage = () => {
                 </div>
               )}
 
-              {/* Action buttons — PENDING_REVIEW */}
-              {booking.status === "PENDING_REVIEW" && (
+              {/* Action buttons — AUTO_CANCELLED */}
+              {booking.status === "AUTO_CANCELLED" && (
                 <div className="flex items-center gap-1 ml-1 shrink-0">
                   <button
                     onClick={() => handleRestore(booking)}
@@ -294,8 +310,52 @@ const AdminBookingsPage = () => {
                   </button>
                 </div>
               )}
+
+              {/* Delete button — always visible */}
+              <button
+                onClick={() => setDeleteTarget(booking)}
+                title="Delete"
+                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Delete Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl text-center">
+            <div className="h-14 w-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="h-7 w-7 text-red-600" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Delete Booking?</h3>
+            <p className="text-sm text-slate-500 mb-6">
+              This will permanently delete the booking for{" "}
+              <strong>{deleteTarget.resourceName}</strong> by{" "}
+              <strong>{deleteTarget.userName}</strong>. This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleteLoading}
+                className="flex-1 bg-red-600 text-white rounded-xl px-4 py-2 text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deleteLoading
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Trash2 className="h-4 w-4" />}
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

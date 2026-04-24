@@ -46,3 +46,6 @@ export const getCheckedInBookings = () =>
 
 export const getNoShowBookings = () =>
   axiosClient.get("/api/bookings/no-shows");
+
+export const deleteBooking = (id) =>
+  axiosClient.delete(`/api/bookings/${id}`);

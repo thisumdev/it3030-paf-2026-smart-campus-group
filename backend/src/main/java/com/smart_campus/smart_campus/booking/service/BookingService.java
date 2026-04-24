@@ -234,6 +234,9 @@ public class BookingService {
     public BookingResponseDTO restoreBooking(Long bookingId, Long adminUserId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException(bookingId));
+        if (booking.getStatus() != BookingStatus.AUTO_CANCELLED) {
+            throw new IllegalStateException("Only AUTO_CANCELLED bookings can be restored");
+        }
         booking.setStatus(BookingStatus.APPROVED);
         Booking saved = bookingRepository.save(booking);
         notificationService.notify(
@@ -245,6 +248,12 @@ public class BookingService {
                 "BOOKING"
         );
         return BookingResponseDTO.fromEntity(saved);
+    }
+
+    public void deleteBooking(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException(bookingId));
+        bookingRepository.delete(booking);
     }
 
     public List<Map<String, Object>> getPublicCalendarEvents(Long resourceId) {

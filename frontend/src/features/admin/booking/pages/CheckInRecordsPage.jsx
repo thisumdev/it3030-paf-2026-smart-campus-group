@@ -4,14 +4,15 @@ import {
   XCircle,
   Loader2,
   AlertCircle,
-  Clock,
   RotateCcw,
+  Trash2,
+  Clock,
 } from "lucide-react";
 import {
-  getCheckedInBookings,
   getNoShowBookings,
   restoreBooking,
-  cancelBooking,
+  deleteBooking,
+  getAllBookings,
 } from "../../../../api/bookingApi";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -27,36 +28,57 @@ const formatDateTime = (dateStr) => {
   });
 };
 
-const getLateness = (startTime, checkedInAt) => {
-  if (!checkedInAt) return null;
-  const diff = Math.round(
-    (new Date(checkedInAt) - new Date(startTime)) / 60000
-  );
-  if (diff <= 0) return { label: "On time", color: "text-emerald-600" };
-  if (diff <= 15) return { label: `${diff} min late`, color: "text-amber-600" };
-  return { label: `${diff} min late`, color: "text-red-600" };
+const getCheckinStatus = (booking) => {
+  const now   = new Date();
+  const start = new Date(booking.startTime);
+  if (booking.checkedIn) {
+    const diff = Math.round((new Date(booking.checkedInAt) - start) / 60000);
+    if (diff <= 0) return { label: "Checked in on time",        color: "bg-emerald-100 text-emerald-700" };
+    return           { label: `Checked in ${diff} min late`,    color: "bg-amber-100 text-amber-700" };
+  }
+  if (now < start) return { label: "Not started yet",           color: "bg-slate-100 text-slate-500" };
+  const minsElapsed = Math.round((now - start) / 60000);
+  if (minsElapsed <= 15) return {
+    label: `Check-in window open (${15 - minsElapsed} min left)`,
+    color: "bg-blue-100 text-blue-700",
+  };
+  return { label: "Missed check-in", color: "bg-red-100 text-red-700" };
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const CheckInRecordsPage = () => {
-  const [checkedIn, setCheckedIn]         = useState([]);
-  const [noShows, setNoShows]             = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [error, setError]                 = useState("");
-  const [actionLoading, setActionLoading] = useState(false);
-  const [activeTab, setActiveTab]         = useState("checkins");
+  const [allApprovedBookings,  setAllApprovedBookings]  = useState([]);
+  const [autoCancelledBookings, setAutoCancelledBookings] = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState("");
+  const [actionLoading, setActionLoading] = useState(null);
+  const [activeTab, setActiveTab]       = useState("attendance");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [checkinRes, noshowRes] = await Promise.all([
-        getCheckedInBookings(),
+      const [allRes, autoCancelledRes] = await Promise.all([
+        getAllBookings(),
         getNoShowBookings(),
       ]);
-      setCheckedIn(checkinRes.data.data || checkinRes.data || []);
-      setNoShows(noshowRes.data.data || noshowRes.data || []);
+      const all = allRes.data.data || allRes.data || [];
+      const approved = Array.isArray(all)
+        ? all
+            .filter((b) => b.status === "APPROVED")
+            .sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
+        : [];
+      setAllApprovedBookings(approved);
+
+      const cancelled = autoCancelledRes.data.data || autoCancelledRes.data || [];
+      setAutoCancelledBookings(
+        Array.isArray(cancelled)
+          ? cancelled.sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
+          : []
+      );
     } catch {
       setError("Failed to load check-in records.");
     } finally {
@@ -69,30 +91,29 @@ const CheckInRecordsPage = () => {
   }, [fetchData]);
 
   const handleRestore = async (booking) => {
-    setActionLoading(true);
+    setActionLoading(booking.id);
     try {
       await restoreBooking(booking.id);
       fetchData();
     } catch {
       setError("Failed to restore booking.");
     } finally {
-      setActionLoading(false);
+      setActionLoading(null);
     }
   };
 
-  const handleCancel = async (booking) => {
-    setActionLoading(true);
+  const handleDeleteConfirm = async () => {
+    setDeleteLoading(true);
     try {
-      await cancelBooking(booking.id);
+      await deleteBooking(deleteTarget.id);
+      setDeleteTarget(null);
       fetchData();
     } catch {
-      setError("Failed to cancel booking.");
+      setError("Failed to delete booking.");
     } finally {
-      setActionLoading(false);
+      setDeleteLoading(false);
     }
   };
-
-  const displayList = activeTab === "checkins" ? checkedIn : noShows;
 
   return (
     <>
@@ -101,13 +122,13 @@ const CheckInRecordsPage = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Check-in Records</h1>
           <p className="text-slate-500 mt-1 text-sm font-medium">
-            Track attendance and manage no-show bookings.
+            Monitor attendance for approved bookings and manage auto-cancellations.
           </p>
         </div>
         <div className="flex items-center gap-2 text-slate-400">
           <Clock className="h-5 w-5" />
           <span className="text-sm font-medium text-slate-500">
-            {checkedIn.length} checked in · {noShows.length} pending review
+            {allApprovedBookings.length} approved · {autoCancelledBookings.length} auto-cancelled
           </span>
         </div>
       </div>
@@ -115,32 +136,35 @@ const CheckInRecordsPage = () => {
       {/* Tabs */}
       <div className="flex gap-2 mb-6">
         <button
-          onClick={() => setActiveTab("checkins")}
+          onClick={() => setActiveTab("attendance")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-            activeTab === "checkins"
+            activeTab === "attendance"
               ? "bg-slate-900 text-white"
               : "bg-slate-100 text-slate-600 hover:bg-slate-200"
           }`}
         >
           <CheckCircle className="h-4 w-4" />
-          Checked In
+          Attendance Tracker
           <span className="ml-1 bg-white/20 px-1.5 py-0.5 rounded-full text-xs">
-            {checkedIn.length}
+            {allApprovedBookings.length}
           </span>
         </button>
         <button
-          onClick={() => setActiveTab("noshows")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-            activeTab === "noshows"
-              ? "bg-purple-700 text-white"
+          onClick={() => setActiveTab("autocancelled")}
+          className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+            activeTab === "autocancelled"
+              ? "bg-red-600 text-white"
               : "bg-slate-100 text-slate-600 hover:bg-slate-200"
           }`}
         >
           <XCircle className="h-4 w-4" />
-          Pending Review
+          Auto-Cancelled
           <span className="ml-1 bg-white/20 px-1.5 py-0.5 rounded-full text-xs">
-            {noShows.length}
+            {autoCancelledBookings.length}
           </span>
+          {autoCancelledBookings.length > 0 && activeTab !== "autocancelled" && (
+            <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-red-500 rounded-full" />
+          )}
         </button>
       </div>
 
@@ -159,135 +183,194 @@ const CheckInRecordsPage = () => {
         </div>
       )}
 
-      {/* Empty state */}
-      {!loading && !error && displayList.length === 0 && (
-        <div className="text-center py-20">
-          <p className="text-4xl mb-3">
-            {activeTab === "checkins" ? "📋" : "🎉"}
-          </p>
-          <p className="text-slate-600 font-semibold">
-            {activeTab === "checkins"
-              ? "No check-ins recorded yet"
-              : "No pending reviews — all bookings are on track 🎉"}
-          </p>
-        </div>
-      )}
-
-      {/* ── Checked In list ───────────────────────────────────────────────── */}
-      {!loading && !error && activeTab === "checkins" && checkedIn.length > 0 && (
-        <div className="space-y-3">
-          {checkedIn.map((booking) => {
-            const lateness = getLateness(booking.startTime, booking.checkedInAt);
-            return (
-              <div
-                key={booking.id}
-                className="bg-white border border-slate-100 rounded-2xl px-5 py-4 flex items-center gap-4 hover:shadow-md transition-all duration-200"
-              >
-                {/* Icon */}
-                <div className="h-10 w-10 bg-slate-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
-                  ✅
-                </div>
-
-                {/* Details */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-900 text-sm truncate">
-                    {booking.resourceName}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Booked by {booking.userName}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {formatDateTime(booking.startTime)} →{" "}
-                    {formatDateTime(booking.endTime)}
-                  </p>
-                  {booking.purpose && (
-                    <p className="text-xs text-slate-500 italic mt-0.5 truncate">
-                      {booking.purpose}
-                    </p>
-                  )}
-                </div>
-
-                {/* Right: lateness + check-in time */}
-                <div className="text-right shrink-0">
-                  {lateness && (
-                    <span className={`text-xs font-semibold ${lateness.color}`}>
-                      {lateness.label}
-                    </span>
-                  )}
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Checked in at {formatDateTime(booking.checkedInAt)}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── Pending Review (no-shows) list ───────────────────────────────── */}
-      {!loading && !error && activeTab === "noshows" && noShows.length > 0 && (
-        <div className="space-y-3">
-          {noShows.map((booking) => (
-            <div
-              key={booking.id}
-              className="bg-white border border-slate-100 rounded-2xl px-5 py-4 flex items-center gap-4 hover:shadow-md transition-all duration-200"
-            >
-              {/* Icon */}
-              <div className="h-10 w-10 bg-amber-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
-                ⚠️
-              </div>
-
-              {/* Details */}
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-slate-900 text-sm truncate">
-                  {booking.resourceName}
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Booked by {booking.userName}
-                </p>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {formatDateTime(booking.startTime)} →{" "}
-                  {formatDateTime(booking.endTime)}
-                </p>
-                {booking.purpose && (
-                  <p className="text-xs text-slate-500 italic mt-0.5 truncate">
-                    {booking.purpose}
-                  </p>
-                )}
-              </div>
-
-              {/* Right: badge + action buttons */}
-              <div className="flex flex-col items-end gap-2 shrink-0">
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">
-                  Not checked in
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleRestore(booking)}
-                    disabled={actionLoading}
-                    title="Restore"
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors disabled:opacity-50"
-                  >
-                    {actionLoading
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <RotateCcw className="h-3.5 w-3.5" />}
-                    Restore
-                  </button>
-                  <button
-                    onClick={() => handleCancel(booking)}
-                    disabled={actionLoading}
-                    title="Cancel"
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors disabled:opacity-50"
-                  >
-                    {actionLoading
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <XCircle className="h-3.5 w-3.5" />}
-                    Cancel
-                  </button>
-                </div>
-              </div>
+      {/* ── ATTENDANCE TRACKER TAB ───────────────────────────────────────── */}
+      {!loading && activeTab === "attendance" && (
+        <>
+          {allApprovedBookings.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-4xl mb-3">📋</p>
+              <p className="text-slate-600 font-semibold">No approved bookings found</p>
             </div>
-          ))}
+          ) : (
+            <div className="space-y-3">
+              {allApprovedBookings.map((booking) => {
+                const checkinStatus = getCheckinStatus(booking);
+                return (
+                  <div
+                    key={booking.id}
+                    className="bg-white border border-slate-100 rounded-2xl px-5 py-4 flex items-center gap-4 hover:shadow-md transition-all duration-200"
+                  >
+                    {/* Icon */}
+                    <div className="h-10 w-10 bg-slate-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
+                      📅
+                    </div>
+
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-slate-900 text-sm truncate">
+                        {booking.resourceName}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Booked by {booking.userName}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {formatDateTime(booking.startTime)} →{" "}
+                        {formatDateTime(booking.endTime)}
+                      </p>
+                      {booking.purpose && (
+                        <p className="text-xs text-slate-500 italic mt-0.5 truncate">
+                          {booking.purpose}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Right: status badge + check-in time + delete */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${checkinStatus.color}`}>
+                          {checkinStatus.label}
+                        </span>
+                        {booking.checkedIn && (
+                          <p className="text-xs text-slate-400 mt-1">
+                            at {formatDateTime(booking.checkedInAt)}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setDeleteTarget(booking)}
+                        title="Delete"
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── AUTO-CANCELLED TAB ───────────────────────────────────────────── */}
+      {!loading && activeTab === "autocancelled" && (
+        <>
+          {autoCancelledBookings.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-4xl mb-3">🎉</p>
+              <p className="text-slate-600 font-semibold">
+                No auto-cancellations — great attendance! 🎉
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {autoCancelledBookings.map((booking) => (
+                <div
+                  key={booking.id}
+                  className="bg-white border border-slate-100 rounded-2xl px-5 py-4 flex items-center gap-4 hover:shadow-md transition-all duration-200"
+                >
+                  {/* Icon */}
+                  <div className="h-10 w-10 bg-amber-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
+                    ⚠️
+                  </div>
+
+                  {/* Details */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-900 text-sm truncate">
+                      {booking.resourceName}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Booked by {booking.userName}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {formatDateTime(booking.startTime)} →{" "}
+                      {formatDateTime(booking.endTime)}
+                    </p>
+                    {booking.purpose && (
+                      <p className="text-xs text-slate-500 italic mt-0.5 truncate">
+                        {booking.purpose}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Right: badge + actions */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="text-right">
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-700">
+                        Auto-Cancelled
+                      </span>
+                      <p className="text-xs text-slate-400 mt-1">
+                        No check-in recorded
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleRestore(booking)}
+                      disabled={actionLoading === booking.id}
+                      title="Restore"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors disabled:opacity-50"
+                    >
+                      {actionLoading === booking.id
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <RotateCcw className="h-3.5 w-3.5" />}
+                      Restore
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(booking)}
+                      title="Delete"
+                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── DELETE CONFIRMATION MODAL ────────────────────────────────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl text-center animate-slide-up">
+            <div className="h-14 w-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="h-7 w-7 text-red-600" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900 mb-2">Delete Booking?</h2>
+            <p className="text-sm text-slate-500 mb-6">
+              This will permanently delete the booking for{" "}
+              <span className="font-semibold text-slate-800">
+                {deleteTarget?.resourceName}
+              </span>{" "}
+              by{" "}
+              <span className="font-semibold text-slate-800">
+                {deleteTarget?.userName}
+              </span>
+              . This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleteLoading}
+                className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white rounded-xl px-4 py-2 text-sm font-bold hover:bg-red-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {deleteLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Deleting…
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>
