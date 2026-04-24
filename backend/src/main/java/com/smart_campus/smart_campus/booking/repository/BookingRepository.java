@@ -59,4 +59,32 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findByResourceIdAndStatus(Long resourceId, BookingStatus status);
 
     List<Booking> findByStatusOrderByStartTimeDesc(BookingStatus status);
+
+    @Query("SELECT b.status, COUNT(b) FROM Booking b GROUP BY b.status")
+    List<Object[]> countByStatus();
+
+    @Query("""
+    SELECT b.user.id, b.user.fullName, b.user.email,
+           COUNT(b) as totalBookings,
+           SUM(CASE WHEN b.status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelled,
+           SUM(CASE WHEN b.status = 'AUTO_CANCELLED' THEN 1 ELSE 0 END) as autoCancelled
+    FROM Booking b
+    JOIN b.user u
+    GROUP BY b.user.id, b.user.fullName, b.user.email
+    ORDER BY totalBookings DESC
+""")
+    List<Object[]> getUserBookingStats();
+
+    @Query(value = """
+    SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN checked_in_at IS NOT NULL AND checked_in_at != '' THEN 1 ELSE 0 END) as checked_in,
+        SUM(CASE WHEN status = 'AUTO_CANCELLED' THEN 1 ELSE 0 END) as auto_cancelled
+    FROM bookings
+    WHERE status = 'APPROVED' OR status = 'AUTO_CANCELLED'
+    """, nativeQuery = true)
+    Object[] getCheckInSummary();
+
+    @Query(value = "SELECT strftime('%w', datetime(start_time/1000, 'unixepoch')) as day_of_week, COUNT(*) as cnt FROM bookings GROUP BY day_of_week ORDER BY day_of_week", nativeQuery = true)
+    List<Object[]> countByDayOfWeek();
 }

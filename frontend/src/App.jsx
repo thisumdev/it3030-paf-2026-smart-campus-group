@@ -27,6 +27,7 @@ import AdminBookingsPage from "./features/admin/booking/pages/AdminBookingsPage"
 import ResourceBookingPage from "./features/booking/pages/ResourceBookingPage";
 import CheckInPage from "./features/booking/pages/CheckInPage";
 import CheckInRecordsPage from "./features/admin/booking/pages/CheckInRecordsPage";
+import BookingAnalyticsPage from "./features/admin/booking/pages/BookingAnalyticsPage";
 
 function App() {
   return (
@@ -100,6 +101,7 @@ function App() {
             />
             <Route path="/admin/bookings" element={<AdminBookingsPage />} />
             <Route path="/admin/bookings/checkins" element={<CheckInRecordsPage />} />
+            <Route path="/admin/bookings/analytics" element={<BookingAnalyticsPage />} />
             <Route
               path="/admin/facilities/analytics"
               element={<FacilitiesAnalyticsPage />}

@@ -53,6 +53,12 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.getBookingHistory(userId));
     }
 
+    @GetMapping("/analytics")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getBookingAnalytics() {
+        return ResponseEntity.ok(bookingService.getBookingAnalytics());
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<BookingResponseDTO> getBookingById(@PathVariable Long id) {

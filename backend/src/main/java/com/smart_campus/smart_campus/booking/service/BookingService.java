@@ -25,6 +25,10 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Core booking workflow: create pending requests, resolve overlaps, admin approve/reject,
+ * owner/admin cancel, token check-in, and read-side APIs for dashboards and public calendar.
+ */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -36,6 +40,12 @@ public class BookingService {
     private final NotificationService notificationService;
     private final BookingEmailService bookingEmailService;
 
+    // ── Create, lookups & lists ─────────────────────────────────────────────────
+
+    /**
+     * Creates a PENDING booking after validating times and ensuring no overlap with another
+     * APPROVED booking on the same resource (same slot cannot be double-booked).
+     */
     public BookingResponseDTO createBooking(Long userId, BookingRequestDTO dto) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -100,6 +110,8 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
+    // ── Admin resolution (PENDING → APPROVED / REJECTED) + email ─────────────────
+
     public BookingResponseDTO approveBooking(Long bookingId, Long adminUserId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException(bookingId));
@@ -120,6 +132,7 @@ public class BookingService {
                 booking.getId(),
                 "BOOKING"
         );
+        // SMTP failures must not roll back approval; log only.
         try {
             bookingEmailService.sendBookingApprovalEmail(
                     booking.getUser().getEmail(),
@@ -160,6 +173,8 @@ public class BookingService {
         return BookingResponseDTO.fromEntity(rejectedBooking);
     }
 
+    // ── Cancel (owner or admin) ─────────────────────────────────────────────────
+
     public BookingResponseDTO cancelBooking(Long bookingId, Long requestingUserId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException(bookingId));
@@ -167,6 +182,7 @@ public class BookingService {
         User requestingUser = userRepository.findById(requestingUserId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // Bookings are scoped to the resource owner in the UI, but admins may cancel any.
         boolean isOwner = booking.getUser().getId().equals(requestingUserId);
         boolean isAdmin = requestingUser.getRole() == User.Role.ADMIN;
 
@@ -191,6 +207,12 @@ public class BookingService {
         return BookingResponseDTO.fromEntity(cancelledBooking);
     }
 
+    // ── Check-in (token link, narrow time window) ───────────────────────────────
+
+    /**
+     * Records attendance for an APPROVED booking: valid only from scheduled start until
+     * 15 minutes after start (late arrivals within grace; no early check-in).
+     */
     public BookingResponseDTO checkIn(String token) {
         Booking booking = bookingRepository.findByCheckInToken(token)
                 .orElseThrow(() -> new RuntimeException("Invalid check-in token"));
@@ -210,6 +232,8 @@ public class BookingService {
         return BookingResponseDTO.fromEntity(bookingRepository.save(booking));
     }
 
+    // ── User history & admin attendance views ───────────────────────────────────
+
     public List<BookingResponseDTO> getBookingHistory(Long userId) {
         return bookingRepository.findPastBookingsByUserId(userId, LocalDateTime.now()).stream()
                 .map(BookingResponseDTO::fromEntity)
@@ -223,6 +247,8 @@ public class BookingService {
                 .map(BookingResponseDTO::fromEntity)
                 .collect(Collectors.toList());
     }
+
+    // ── Admin lists & recovery ─────────────────────────────────────────────────
 
     public List<BookingResponseDTO> getBookingsByStatus(BookingStatus status) {
         return bookingRepository.findByStatus(status)
@@ -256,6 +282,12 @@ public class BookingService {
         bookingRepository.delete(booking);
     }
 
+    // ── Public calendar (no sensitive fields; only confirmed slots) ─────────────
+
+    /**
+     * Calendar feed: APPROVED bookings only, optionally filtered to one resource.
+     * Status is exposed as a generic "BOOKED" for external consumers.
+     */
     public List<Map<String, Object>> getPublicCalendarEvents(Long resourceId) {
         List<Booking> bookings;
         if (resourceId != null) {
@@ -273,5 +305,120 @@ public class BookingService {
             event.put("status", "BOOKED");
             return event;
         }).collect(Collectors.toList());
+    }
+
+    // ── Admin analytics (aggregates for dashboards) ───────────────────────────────
+
+    /**
+     * Builds a single payload for booking analytics. Native / JPQL scalar rows often return
+     * {@link Integer} or {@link Long} depending on the JDBC driver
+     * normalises counts without ClassCastException on SQLite.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getBookingAnalytics() {
+        Map<String, Object> analytics = new LinkedHashMap<>();
+
+        // 1. Status breakdown — one row per enum name + count (drives pie chart + headline totals).
+        Map<String, Long> statusCounts = new LinkedHashMap<>();
+        bookingRepository.countByStatus().forEach(row -> {
+            if (row[0] != null && row[1] != null) {
+                statusCounts.put(row[0].toString(), ((Number) row[1]).longValue());
+            }
+        });
+        analytics.put("statusBreakdown", statusCounts);
+
+        // 2. Totals & rates — approval = approved / all; cancellation includes user cancel + auto no-show.
+        long total = statusCounts.values().stream().mapToLong(Long::longValue).sum();
+        long approved = statusCounts.getOrDefault("APPROVED", 0L);
+        long pending = statusCounts.getOrDefault("PENDING", 0L);
+        long rejected = statusCounts.getOrDefault("REJECTED", 0L);
+        long cancelled = statusCounts.getOrDefault("CANCELLED", 0L);
+        long autoCancelled = statusCounts.getOrDefault("AUTO_CANCELLED", 0L);
+        analytics.put("totalBookings", total);
+        analytics.put("approvedBookings", approved);
+        analytics.put("pendingBookings", pending);
+        analytics.put("rejectedBookings", rejected);
+        analytics.put("cancelledBookings", cancelled);
+        analytics.put("autoCancelledBookings", autoCancelled);
+        analytics.put("approvalRate", total > 0 ? Math.round((approved * 100.0) / total) : 0);
+        analytics.put("cancellationRate", total > 0 ? Math.round(((cancelled + autoCancelled) * 100.0) / total) : 0);
+
+        // 3. Check-in summary — denominator is APPROVED + AUTO_CANCELLED rows; checkedIn has timestamp set;
+        // ghosted = scheduler auto-cancelled (no-show), used with checkedIn for the stacked bar on the UI.
+        try {
+            Object[] checkIn = bookingRepository.getCheckInSummary();
+            long totalApprovedAndAuto = 0L;
+            long checkedIn = 0L;
+            long ghosted = 0L;
+
+            if (checkIn != null) {
+                // Native query may return a single Object[] or wrapped differently
+                // Handle both cases
+                Object[] row = checkIn;
+                if (checkIn.length > 0 && checkIn[0] instanceof Object[]) {
+                    row = (Object[]) checkIn[0];
+                }
+                if (row.length >= 1 && row[0] != null) totalApprovedAndAuto = ((Number) row[0]).longValue();
+                if (row.length >= 2 && row[1] != null) checkedIn = ((Number) row[1]).longValue();
+                if (row.length >= 3 && row[2] != null) ghosted = ((Number) row[2]).longValue();
+            }
+
+            analytics.put("totalApprovedBookings", totalApprovedAndAuto);
+            analytics.put("checkedInCount", checkedIn);
+            analytics.put("ghostedCount", ghosted);
+            analytics.put("checkInRate", totalApprovedAndAuto > 0 ? Math.round((checkedIn * 100.0) / totalApprovedAndAuto) : 0);
+        } catch (Exception e) {
+            System.err.println("Check-in summary error: " + e.getMessage());
+            analytics.put("totalApprovedBookings", 0L);
+            analytics.put("checkedInCount", 0L);
+            analytics.put("ghostedCount", 0L);
+            analytics.put("checkInRate", 0L);
+        }
+
+        // 4. User behaviour — top bookers with explicit manual vs auto cancel counts + rate.
+        List<Map<String, Object>> userStats = new java.util.ArrayList<>();
+        bookingRepository.getUserBookingStats().forEach(row -> {
+            try {
+                if (row[0] == null) return;
+                Map<String, Object> user = new LinkedHashMap<>();
+                user.put("userId", row[0]);
+                user.put("userName", row[1] != null ? row[1] : "Unknown");
+                user.put("email", row[2] != null ? row[2] : "");
+                long userTotal = row[3] != null ? ((Number) row[3]).longValue() : 0L;
+                long userCancelledCount = row[4] != null ? ((Number) row[4]).longValue() : 0L;
+                long userAutoCancelledCount = row[5] != null ? ((Number) row[5]).longValue() : 0L;
+                user.put("totalBookings", userTotal);
+                user.put("cancelledBookings", userCancelledCount);
+                user.put("autoCancelledBookings", userAutoCancelledCount);
+                long totalCancelled = userCancelledCount + userAutoCancelledCount;
+                user.put("cancellationRate", userTotal > 0 ? Math.round((totalCancelled * 100.0) / userTotal) : 0);
+                userStats.add(user);
+            } catch (Exception e) {
+                // Malformed native-query row (wrong types / nulls); omit rather than failing the whole report.
+            }
+        });
+        analytics.put("userStats", userStats.stream().limit(10).collect(java.util.stream.Collectors.toList()));
+
+        // 5. Bookings by day of week — SQLite strftime weekday 0=Sun … 6=Sat; skip bad indices quietly.
+        String[] dayNames = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+        List<Map<String, Object>> dayData = new java.util.ArrayList<>();
+        bookingRepository.countByDayOfWeek().forEach(row -> {
+            try {
+                if (row[0] == null) return;
+                String dayStr = row[0].toString().trim();
+                if (dayStr.isEmpty()) return;
+                int dayIdx = Integer.parseInt(dayStr);
+                if (dayIdx < 0 || dayIdx > 6) return;
+                Map<String, Object> day = new LinkedHashMap<>();
+                day.put("day", dayNames[dayIdx]);
+                day.put("count", row[1]);
+                dayData.add(day);
+            } catch (NumberFormatException e) {
+                // Non-numeric day label from DB; ignore this bucket.
+            }
+        });
+        analytics.put("bookingsByDay", dayData);
+
+        return analytics;
     }
 }
