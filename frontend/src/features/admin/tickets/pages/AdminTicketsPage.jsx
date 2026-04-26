@@ -9,6 +9,7 @@ import {
   Trash2,
   Settings2,
   ChevronDown,
+  Download,
 } from "lucide-react";
 import {
   fetchAllTickets,
@@ -344,6 +345,29 @@ const AdminTicketsPage = () => {
     return acc;
   }, {});
 
+  const handleExport = () => {
+    const headers = ["ID", "Title", "Category", "Reporter", "Resource", "Priority", "Status", "Assignee", "Created"];
+    const rows = visible.map((t) => [
+      t.id,
+      `"${(t.title ?? "").replace(/"/g, '""')}"`,
+      t.category ?? "",
+      `"${(t.reporterName ?? "").replace(/"/g, '""')}"`,
+      `"${(t.resourceName ?? "").replace(/"/g, '""')}"`,
+      t.priority ?? "",
+      t.status ?? "",
+      `"${(t.assigneeName ?? "").replace(/"/g, '""')}"`,
+      t.createdAt ? new Date(t.createdAt).toLocaleDateString("en-AU") : "",
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tickets_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       {/* Header */}
@@ -434,6 +458,14 @@ const AdminTicketsPage = () => {
         >
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           <span className="hidden sm:inline">Refresh</span>
+        </button>
+        <button
+          onClick={handleExport}
+          disabled={loading || visible.length === 0}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
+        >
+          <Download className="h-4 w-4" />
+          <span className="hidden sm:inline">Export CSV</span>
         </button>
       </div>
 
