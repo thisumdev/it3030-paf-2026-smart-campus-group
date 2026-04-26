@@ -12,6 +12,18 @@ import {
   Download,
 } from "lucide-react";
 import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
+import {
   fetchAllTickets,
   updateTicketStatus,
   deleteAdminTicket,
@@ -345,6 +357,34 @@ const AdminTicketsPage = () => {
     return acc;
   }, {});
 
+  const STATUS_COLORS = {
+    OPEN: "#3b82f6",
+    IN_PROGRESS: "#f59e0b",
+    RESOLVED: "#10b981",
+    CLOSED: "#94a3b8",
+    REJECTED: "#ef4444",
+  };
+
+  const PRIORITY_COLORS = {
+    LOW: "#94a3b8",
+    MEDIUM: "#f59e0b",
+    HIGH: "#f97316",
+    CRITICAL: "#ef4444",
+  };
+
+  const statusChartData = ALL_STATUSES.map((s) => ({
+    name: STATUS_META[s].label,
+    count: counts[s] ?? 0,
+    fill: STATUS_COLORS[s],
+  }));
+
+  const priorityChartData = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    .map((p) => ({
+      name: PRIORITY_META[p].label,
+      value: tickets.filter((t) => t.priority === p).length,
+    }))
+    .filter((d) => d.value > 0);
+
   const handleExport = () => {
     const headers = ["ID", "Title", "Category", "Reporter", "Resource", "Priority", "Status", "Assignee", "Created"];
     const rows = visible.map((t) => [
@@ -394,6 +434,83 @@ const AdminTicketsPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Charts */}
+      {!loading && !error && tickets.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 animate-slide-up">
+          {/* Bar chart — by status */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <p className="text-sm font-semibold text-slate-700 mb-4">Tickets by Status</p>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={statusChartData} barCategoryGap="35%">
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 11, fill: "#94a3b8" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 11, fill: "#94a3b8" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={24}
+                />
+                <Tooltip
+                  cursor={{ fill: "#f8fafc" }}
+                  contentStyle={{ borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 12 }}
+                  formatter={(v) => [v, "Tickets"]}
+                />
+                <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                  {statusChartData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Pie chart — by priority */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <p className="text-sm font-semibold text-slate-700 mb-4">Tickets by Priority</p>
+            {priorityChartData.length === 0 ? (
+              <div className="flex items-center justify-center h-[200px] text-slate-300 text-sm">
+                No data
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={priorityChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={80}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {priorityChartData.map((entry) => (
+                      <Cell
+                        key={entry.name}
+                        fill={PRIORITY_COLORS[entry.name.toUpperCase()] ?? "#94a3b8"}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 12 }}
+                    formatter={(v, name) => [v, name]}
+                  />
+                  <Legend
+                    iconType="circle"
+                    iconSize={8}
+                    formatter={(v) => <span style={{ fontSize: 11, color: "#64748b" }}>{v}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3 animate-slide-up flex-wrap">
