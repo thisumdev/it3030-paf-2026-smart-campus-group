@@ -21,7 +21,7 @@ public class ResourceController {
 
     private final ResourceService resourceService;
 
-    // ── PUBLIC: List / Search ─────────────────────────────────────────────────
+    //  PUBLIC: List / Search 
     @GetMapping
     public ResponseEntity<ApiResponse<Page<ResourceDto.ResourceResponse>>> search(
             @RequestParam(required = false) String name,
@@ -44,13 +44,13 @@ public class ResourceController {
                 resourceService.search(name, type, status, location, minCapacity, maxCapacity, pageable)));
     }
 
-    // ── PUBLIC: Get One ───────────────────────────────────────────────────────
+    // PUBLIC: Get One
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ResourceDto.ResourceResponse>> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(resourceService.getById(id)));
     }
 
-    // ── ADMIN: Create ─────────────────────────────────────────────────────────
+    //  ADMIN: Create 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ResourceDto.ResourceResponse>> create(
@@ -59,7 +59,7 @@ public class ResourceController {
                 .body(ApiResponse.created("Resource created successfully", resourceService.create(req)));
     }
 
-    // ── ADMIN: Full Update ────────────────────────────────────────────────────
+    //  ADMIN: Full Update 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ResourceDto.ResourceResponse>> update(
@@ -68,7 +68,7 @@ public class ResourceController {
         return ResponseEntity.ok(ApiResponse.success("Resource updated", resourceService.update(id, req)));
     }
 
-    // ── ADMIN: Patch Status Only ──────────────────────────────────────────────
+    //  ADMIN: Patch Status Only 
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ResourceDto.ResourceResponse>> updateStatus(
@@ -77,7 +77,7 @@ public class ResourceController {
         return ResponseEntity.ok(ApiResponse.success("Status updated", resourceService.updateStatus(id, req)));
     }
 
-    // ── ADMIN: Delete ─────────────────────────────────────────────────────────
+    //  ADMIN: Delete 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
@@ -85,7 +85,7 @@ public class ResourceController {
         return ResponseEntity.ok(ApiResponse.noContent("Resource deleted successfully"));
     }
 
-    // ── ADMIN: Analytics ──────────────────────────────────────────────────────
+    // ADMIN: Analytics 
     @GetMapping("/analytics")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ResourceDto.AnalyticsResponse>> getAnalytics() {
