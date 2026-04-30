@@ -62,11 +62,36 @@ feature/module1-#respectivefeature
 
 ### Member 1 — Facilities & Assets Catalogue
 
-> _To be updated by Member 1_
+| Method   | Endpoint                         | Auth    | Status | Description                                                                           |
+| -------- | -------------------------------- | ------- | ------ | --------------------------------------------------------------------------------------|
+| `GET`    | `/api/resources`                 | Public  | 200    | Get paginated resources with filters: `name`, `type`, `status`,`location`,            |                  |          |                                  |         |        |       `minCapacity`,`maxCapacity`, `page`, `size`, `sortBy`, `sortDir`                |
+| `GET`    | `/api/resources/{id}`            | Public  | 200    | Get resource by ID                                                                    |
+| `POST`   | `/api/resources`                 | ADMIN   | 201    | Create a new resource                                                                 |
+| `PUT`    | `/api/resources/{id}`            | ADMIN   | 200    | Full update of an existing resource                                                   |
+| `PATCH`  | `/api/resources/{id}/status`     | ADMIN   | 200    | Update resource status: `AVAILABLE`, `MAINTENANCE`, `OUT_OF_SERVICE`                  |
+| `DELETE` | `/api/resources/{id}`            | ADMIN   | 200    | Delete a resource and associated bookings                                             |
+| `GET`    | `/api/resources/analytics`       | ADMIN   | 200    | Get resource analytics including counts, top resources, peak hours, and count by type |
 
 ### Member 2 — Booking & Workflow
 
-> _To be updated by Member 2_
+#### Bookings — User
+
+| Method   | Endpoint             | Auth    | Status | Description                                            |
+| -------- | -------------------- | ------- | ------ | ------------------------------------------------------ |
+| `POST`   | `/api/bookings`      | Any JWT | 201    | Create booking                                         |
+| `GET`    | `/api/bookings/me`   | Any JWT | 200    | Get own bookings                                       |
+| `GET`    | `/api/bookings/{id}` | Any JWT | 200    | Get booking by ID (own booking or ADMIN)               |
+| `PUT`    | `/api/bookings/{id}` | Any JWT | 200    | Update own pending booking                             |
+| `DELETE` | `/api/bookings/{id}` | Any JWT | 204    | Cancel own booking                                     |
+
+#### Bookings — Admin
+
+| Method   | Endpoint                           | Auth  | Status | Description                                                         |
+| -------- | ---------------------------------- | ----- | ------ | ------------------------------------------------------------------- |
+| `GET`    | `/api/admin/bookings`              | ADMIN | 200    | List all bookings (`?status=` `?userId=` `?facilityId=` `?date=`)   |
+| `GET`    | `/api/admin/bookings/{id}`         | ADMIN | 200    | Get booking by ID                                                   |
+| `PATCH`  | `/api/admin/bookings/{id}/approve` | ADMIN | 200    | Approve booking                                                     |
+| `PATCH`  | `/api/admin/bookings/{id}/reject`  | ADMIN | 200    | Reject booking (reason in body)                                     |
 
 ### Member 3 — Ticketing & Maintenance
 
@@ -114,11 +139,56 @@ feature/module1-#respectivefeature
 
 ### Member 1 — Facilities & Assets Catalogue
 
-> _To be updated by Member 1_
+**Backend**
+
+- [x] Resource entity with fields for name, type, capacity, location, availability count, description, image URL, and status
+- [x] Resource statuses implemented: `AVAILABLE`, `MAINTENANCE`, `OUT_OF_SERVICE`
+- [x] Layered backend architecture: Entity, Repository, Service, Controller
+- [x] JPA Repository and JpaSpecificationExecutor used for resource queries
+- [x] Dynamic filtering by name, type, status, location, and capacity range
+- [x] Public resource browsing endpoints
+- [x] Admin-only create, update, status update, and delete endpoints
+- [x] Duplicate resource name handling with HTTP 409 Conflict
+- [x] 404 handling for missing resources
+- [x] Standard `ApiResponse` wrapper used for responses
+- [x] Usage analytics endpoint with total resources, active resources, maintenance resources, out-of-service resources, top resources, peak hours, and count by type
+- [x] Postman testing completed for all resource endpoints
+
+**Frontend**
+
+- [x] Admin Facilities & Assets Catalogue page
+- [x] Resource grid and list views
+- [x] Filtering by name, type, status, location, and capacity
+- [x] Create, edit, view, delete, and status update actions
+- [x] Resource form modal
+- [x] Status update modal
+- [x] Delete confirmation modal
+- [x] Usage Analytics page with charts for booking trends, top booked resources, and resource distribution
+- [x] Admin dashboard resource statistics
+- [x] User Facilities page for browsing and filtering resources
+- [x] Resource detail view with booking integration readiness
 
 ### Member 2 — Booking & Workflow
 
-> _To be updated by Member 2_
+**Backend**
+
+- [x] Booking entity with status lifecycle (PENDING → APPROVED / REJECTED / CANCELLED)
+- [x] Full booking CRUD endpoints
+- [x] Conflict detection (prevent double-booking of same facility/time slot)
+- [x] Role-based access control on booking actions
+- [x] Admin approval and rejection workflow with reason field
+- [x] Integration with notification system via notify() for status changes
+- [x] Global exception handling with proper HTTP status codes
+- [x] HATEOAS links on all responses
+
+**Frontend**
+
+- [x] Booking creation form with facility and time slot selection
+- [x] My Bookings page (view, cancel own bookings)
+- [x] Booking detail view with status badge
+- [x] Admin Bookings management page (filter by status, user, facility, date)
+- [x] Admin approve/reject actions with confirmation dialog
+- [x] Real-time status updates reflected in UI after actions
 
 ### Member 3 — Ticketing & Maintenance
 
