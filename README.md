@@ -95,7 +95,27 @@ feature/module1-#respectivefeature
 
 ### Member 3 — Ticketing & Maintenance
 
-> _To be updated by Member 3_
+#### Tickets
+
+| Method   | Endpoint                   | Auth               | Status | Description                                                                              |
+| -------- | -------------------------- | ------------------ | ------ | ---------------------------------------------------------------------------------------- |
+| `POST`   | `/api/tickets`             | Any JWT            | 201    | Create a new incident ticket (title, description, priority, category, resourceId)        |
+| `GET`    | `/api/tickets`             | ADMIN              | 200    | Get all tickets                                                                          |
+| `GET`    | `/api/tickets/my`          | Any JWT            | 200    | Get tickets created by the logged-in user                                                |
+| `GET`    | `/api/tickets/{id}`        | Any JWT            | 200    | Get a single ticket by ID                                                                |
+| `GET`    | `/api/tickets/assigned`    | TECHNICIAN         | 200    | Get tickets assigned to the current technician                                           |
+| `PATCH`  | `/api/tickets/{id}/status` | ADMIN / TECHNICIAN | 200    | Update ticket status; optionally assign technician, add resolution notes or rejection reason |
+| `DELETE` | `/api/tickets/{id}`        | ADMIN              | 204    | Delete a ticket (cascades to images and comments)                                        |
+| `GET`    | `/api/tickets/resources`   | Any JWT            | 200    | List all campus resources (used to populate the submit form dropdown)                    |
+| `POST`   | `/api/tickets/{id}/images` | Any JWT            | 200    | Upload up to 3 evidence images (`multipart/form-data`, field: `files`)                  |
+
+#### Ticket Comments
+
+| Method   | Endpoint                                       | Auth    | Status | Description                                            |
+| -------- | ---------------------------------------------- | ------- | ------ | ------------------------------------------------------ |
+| `POST`   | `/api/tickets/{ticketId}/comments`             | Any JWT | 201    | Add a comment to a ticket                              |
+| `GET`    | `/api/tickets/{ticketId}/comments`             | Any JWT | 200    | Get all comments on a ticket (ordered oldest → newest) |
+| `DELETE` | `/api/tickets/{ticketId}/comments/{commentId}` | Any JWT | 204    | Delete own comment (returns 403 if not the author)     |
 
 ### Member 4 — Security & Communications
 
@@ -192,7 +212,34 @@ feature/module1-#respectivefeature
 
 ### Member 3 — Ticketing & Maintenance
 
-> _To be updated by Member 3_
+**Backend**
+
+- [x] `Ticket` entity with status, priority, category enums; `@PrePersist` auto-sets `createdAt`
+- [x] `TicketImage` entity linked to `Ticket` (up to 3 images, UUID-named, stored on disk)
+- [x] `TicketComment` entity with author ownership; ordered by `createdAt ASC`
+- [x] `TicketService` interface + `TicketServiceImpl` (full layered architecture)
+- [x] Create ticket — validates title, description, priority, category, resourceId via `@Valid`
+- [x] Get all tickets (admin), get my tickets (user), get by ID, get assigned tickets (technician)
+- [x] Update ticket status — `OPEN → IN_PROGRESS → RESOLVED → CLOSED`; `REJECTED` requires reason
+- [x] Technician assignment via `PATCH /status` (sets `assignee`, fires `TICKET_ASSIGNED` notification)
+- [x] Resolution notes stored on `RESOLVED`; `resolvedAt` timestamp auto-set
+- [x] Image upload endpoint — enforces max 3 images per ticket, UUID filenames, `IOException` handled
+- [x] Comment CRUD — add, list, delete own (ownership check throws 403 if not author)
+- [x] NotificationService integration — fires notifications on every status transition
+- [x] `GlobalExceptionHandler` covers 400 / 403 / 404 / 409 / 500 with structured `ApiResponse`
+- [x] `TicketRepository` uses `@EntityGraph` to prevent N+1 on reporter, resource, assignee, images
+- [x] Postman collection provided (`Ticket_Management.postman_collection.json`)
+
+**Frontend**
+
+- [x] Submit Ticket page (`SubmitTicketPage.jsx`) — form with resource dropdown, priority, category, preferred contact
+- [x] My Tickets page (`MyTicketsPage.jsx`) — list of own tickets with status badges and priority indicators
+- [x] Ticket Detail page (`TicketDetailPage.jsx`) — full ticket view with image gallery and comment thread
+- [x] Assigned Tickets page (`AssignedTicketsPage.jsx`) — technician view of assigned tickets
+- [x] Admin Tickets page (`AdminTicketsPage.jsx`) — full ticket table with status update and technician assignment controls
+- [x] Technician Dashboard (`TechnicianDashboard.jsx`) with assigned ticket summary
+- [x] Technician Assignments page (`TechnicianAssignments.jsx`) — manage and update ticket status inline
+- [x] Technician layout (`TechnicianLayout.jsx` + `TechnicianSideBar.jsx`) with role-protected routing
 
 ### Member 4 — Security & Communications
 
