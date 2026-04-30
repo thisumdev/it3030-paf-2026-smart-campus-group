@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Upload, Link } from "lucide-react";
 import { createResource, updateResource } from "../services/facilityApi";
 
 const RESOURCE_TYPES = ["LECTURE_HALL", "LAB", "MEETING_ROOM", "EQUIPMENT"];
@@ -20,7 +20,7 @@ const empty = {
   availableFrom: "08:00",
   availableTo: "20:00",
   description: "",
-  status: "AVAILABLE",   // ← fixed from ACTIVE
+  status: "AVAILABLE",
   imageUrl: "",
 };
 
@@ -30,6 +30,8 @@ const ResourceFormModal = ({ resource, onClose, onSaved }) => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [imagePreview, setImagePreview] = useState("");
+  const [imageTab, setImageTab] = useState("upload"); // "upload" | "url"
 
   useEffect(() => {
     if (resource) {
@@ -41,17 +43,55 @@ const ResourceFormModal = ({ resource, onClose, onSaved }) => {
         availableFrom: resource.availableFrom || "08:00",
         availableTo: resource.availableTo || "20:00",
         description: resource.description || "",
-        status: resource.status || "AVAILABLE",   // ← fixed from ACTIVE
+        status: resource.status || "AVAILABLE",
         imageUrl: resource.imageUrl || "",
       });
+      setImagePreview(resource.imageUrl || "");
+      // If existing image is a URL (not base64), default to URL tab
+      if (resource.imageUrl && !resource.imageUrl.startsWith("data:")) {
+        setImageTab("url");
+      }
     }
   }, [resource]);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setErrors((ev) => ({ ...ev, image: "Please select a valid image file" }));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result;
+      setForm((f) => ({ ...f, imageUrl: base64 }));
+      setImagePreview(base64);
+      setErrors((ev) => ({ ...ev, image: undefined }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUrlChange = (e) => {
+    const url = e.target.value;
+    setForm((f) => ({ ...f, imageUrl: url }));
+    setImagePreview(url);
+    setErrors((ev) => ({ ...ev, image: undefined }));
+  };
+
+  const removeImage = () => {
+    setForm((f) => ({ ...f, imageUrl: "" }));
+    setImagePreview("");
+  };
 
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = "Name is required";
     if (!form.location.trim()) e.location = "Location is required";
-    if (form.type !== "EQUIPMENT" && form.capacity !== "" && Number(form.capacity) < 1)
+    if (
+      form.type !== "EQUIPMENT" &&
+      form.capacity !== "" &&
+      Number(form.capacity) < 1
+    )
       e.capacity = "Capacity must be at least 1";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -92,6 +132,7 @@ const ResourceFormModal = ({ resource, onClose, onSaved }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto">
+
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
           <h2 className="text-lg font-bold text-slate-900">
@@ -170,7 +211,9 @@ const ResourceFormModal = ({ resource, onClose, onSaved }) => {
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Capacity
                 {form.type === "EQUIPMENT" && (
-                  <span className="ml-1 text-slate-400 font-normal">(N/A for equipment)</span>
+                  <span className="ml-1 text-slate-400 font-normal">
+                    (N/A for equipment)
+                  </span>
                 )}
               </label>
               <input
@@ -192,7 +235,9 @@ const ResourceFormModal = ({ resource, onClose, onSaved }) => {
               <input
                 {...field("location")}
                 className={`w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-900/30 focus:border-primary-900 ${
-                  errors.location ? "border-red-400 bg-red-50" : "border-slate-200"
+                  errors.location
+                    ? "border-red-400 bg-red-50"
+                    : "border-slate-200"
                 }`}
                 placeholder="e.g. Block A, Ground Floor"
               />
@@ -239,16 +284,93 @@ const ResourceFormModal = ({ resource, onClose, onSaved }) => {
             />
           </div>
 
-          {/* Image URL */}
+          {/* ── Image Section ── */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-              Image URL <span className="text-slate-400 font-normal">(optional)</span>
+              Resource Image{" "}
+              <span className="text-slate-400 font-normal">(optional)</span>
             </label>
-            <input
-              {...field("imageUrl")}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-900/30 focus:border-primary-900"
-              placeholder="https://..."
-            />
+
+            {/* Tab switcher */}
+            <div className="flex rounded-xl border border-slate-200 overflow-hidden mb-3 text-sm font-semibold">
+              <button
+                type="button"
+                onClick={() => setImageTab("upload")}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
+                  imageTab === "upload"
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Upload from Device
+              </button>
+              <button
+                type="button"
+                onClick={() => setImageTab("url")}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
+                  imageTab === "url"
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                <Link className="h-3.5 w-3.5" />
+                Use Image URL
+              </button>
+            </div>
+
+            {/* Image preview (shared) */}
+            {imagePreview && (
+              <div className="relative mb-3 rounded-xl overflow-hidden bg-slate-100 h-40">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                  onError={() => setImagePreview("")}
+                />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Upload tab */}
+            {imageTab === "upload" && (
+              <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl px-4 py-6 cursor-pointer hover:bg-slate-50 hover:border-slate-400 transition-colors">
+                <Upload className="h-6 w-6 text-slate-400 mb-2" />
+                <span className="text-sm font-semibold text-slate-600">
+                  Click to upload image
+                </span>
+                <span className="text-xs text-slate-400">
+                  PNG, JPG, GIF up to 10MB
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+              </label>
+            )}
+
+            {/* URL tab */}
+            {imageTab === "url" && (
+              <input
+                type="url"
+                value={form.imageUrl.startsWith("data:") ? "" : form.imageUrl}
+                onChange={handleUrlChange}
+                placeholder="https://example.com/image.jpg"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-900/30 focus:border-primary-900"
+              />
+            )}
+
+            {errors.image && (
+              <p className="text-red-500 text-xs mt-1">{errors.image}</p>
+            )}
           </div>
         </div>
 
